@@ -139,8 +139,9 @@ Rules, so it stays a window onto the game and never becomes part of it:
   instrumented at all — that is the teaching payload: *the same snapshot that proves RENDER
   changed nothing shows you exactly what UPDATE did change.*
 - It listens for the X key with its own `keydown` handler so INPUT stays about the game.
-- **Delete section 11 and the `<aside>` and the game is exactly the same.** Every X-ray constant
-  lives inside section 11 for that reason, including its localStorage key.
+- **Delete section 11, the `<aside>`, and the three X-ray lines in LOOP, and the game is exactly
+  the same.** Every X-ray constant lives inside section 11 for that reason, including its
+  localStorage key.
 - All of §3's style rules apply to it unchanged. The file's target stays 1,200–1,800 lines.
 
 ---
@@ -236,8 +237,8 @@ Mechanically checkable — run these before calling it done:
 - [ ] All four deliverables present; `TEARDOWN.md` line ranges match the actual file.
 - [ ] (v1.1) X pressed in the game shows the panel; X again hides it; the choice survives F5.
 - [ ] (v1.1) No assignment to `state.` or `intents.` anywhere inside section `11 · X-RAY`.
-- [ ] (v1.1) Deleting section 11 and the `<aside>` leaves a game that opens with zero console
-      errors and plays through — the X-ray is removable by construction.
+- [ ] (v1.1) Deleting section 11, the `<aside>` and the three X-ray lines in LOOP leaves a game
+      that opens with zero console errors and walks — the X-ray is removable by construction.
 - [ ] (v1.1) `node tools/check.mjs`, `node tools/playthrough.mjs` and `node tools/check-doc-lines.mjs`
       all exit 0. These are maintainer tools, not student deliverables.
 
