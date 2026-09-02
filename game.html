@@ -1,0 +1,1222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Open World How-To</title>
+<!-- Browsers ask for a tiny tab icon next to the page. This says "there isn't
+     one" so the console never shows a missing-file error. -->
+<link rel="icon" href="data:,">
+<style>
+  /* The page is a dark frame around one canvas. Everything you see in the
+     game is drawn onto that canvas by the JavaScript below. */
+  body {
+    margin: 0;
+    background: #101018;
+    color: #ddd;
+    font-family: monospace;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  canvas {
+    margin-top: 16px;
+    background: #000;
+  }
+  p {
+    max-width: 640px;
+    font-size: 13px;
+    color: #888;
+  }
+</style>
+</head>
+<body>
+<canvas id="gameCanvas"></canvas>
+<p>
+  Arrow keys or WASD to walk. Space to talk and to pick a dialogue choice.
+  K saves, L loads, N starts over. Open this file in a text editor to see how it works.
+</p>
+<script>
+'use strict';
+
+/* ------------------------------------------------------------
+   HOW TO READ THIS FILE
+
+   This is a whole open-world game in one file, written to be read.
+   It is split into ten numbered sections. Each one opens with a
+   banner like the one just below, and each banner says what to
+   look for. Read them in order the first time; after that, jump.
+
+     1 CONFIG   the numbers            6 COLLIDE  what blocks you
+     2 DATA     the world as text      7 RENDER   state -> pixels
+     3 STATE    what the game knows    8 LOOP     the heartbeat
+     4 INPUT    keys -> intents        9 SAVE     state -> storage
+     5 UPDATE   intents -> state      10 BOOT     start here
+
+   The whole game is one sentence, repeated sixty times a second:
+
+     keyboard --> INPUT --> intents --> UPDATE --> state --> RENDER --> screen
+
+   Only UPDATE (and SAVE, when loading) may change `state`.
+   RENDER may only read it, and the LOOP checks that every frame.
+   If you remember nothing else, remember that arrow.
+   ------------------------------------------------------------ */
+
+/* ============================================================
+   1 · CONFIG — every number you might want to change
+   What to look for: nothing further down the file is a bare
+   number. Speed, sizes, colors and timings all live here, so
+   changing how the game feels never means hunting through logic.
+   ============================================================ */
+
+// The world is a grid of square tiles. Everything is measured in tiles
+// and converted to pixels only at draw time.
+const tileSizeInPixels = 32;
+const viewportWidthInTiles = 20;
+const viewportHeightInTiles = 15;
+
+// How fast the player walks: steps (tiles) per second while a key is held.
+const playerStepsPerSecond = 7;
+
+// The simulation advances in fixed slices so that a slow or fast computer
+// produces exactly the same game. 1/60 means sixty updates per second.
+const fixedStepInSeconds = 1 / 60;
+
+// If the browser tab was hidden, a huge gap of time can pile up. We never
+// simulate more than this much at once so the game doesn't "fast forward".
+const maxFrameGapInSeconds = 0.25;
+
+// How long the yellow notice ("Saved!", "Picked up ...") stays on screen.
+const noticeDurationInSeconds = 2;
+
+// The strip under the world where the bag and quest list are drawn.
+const hudHeightInPixels = 96;
+
+// The name of the slot in the browser's localStorage that holds the save.
+const saveSlotName = 'open-world-how-to-save';
+
+// When true, every frame checks that RENDER did not change state.
+// It costs a little speed and is worth it: it proves the file's big promise.
+const checkRenderPurity = true;
+
+const colors = {
+  grass: '#5cab4a',
+  path: '#c9b47c',
+  tree: '#2f6b31',
+  treeTop: '#1f4a22',
+  water: '#3a7bd5',
+  bridge: '#9c6b3c',
+  door: '#7a4a1e',
+  doorInner: '#3d2410',
+  wall: '#6d6d7a',
+  floor: '#b08a5a',
+  outsideMap: '#000000',
+  player: '#f2d16b',
+  playerEye: '#222222',
+  hudBackground: '#15151f',
+  hudText: '#eeeeee',
+  hudDim: '#8a8a99',
+  questDone: '#7be07b',
+  notice: '#ffd75e',
+  dialogueBox: 'rgba(10, 10, 20, 0.92)',
+  dialogueName: '#ffd75e',
+  dialogueText: '#ffffff',
+  dialogueChoice: '#bbbbbb',
+  dialogueChoiceSelected: '#ffd75e',
+};
+
+const fonts = {
+  hud: '15px monospace',
+  small: '11px monospace',
+  dialogue: '16px monospace',
+  notice: 'bold 18px monospace',
+};
+
+// Pixel measurements RENDER uses to place things. Kept here, named, so the
+// drawing code below reads as shapes and not as a pile of numbers.
+const layout = {
+  // People and the player are squares slightly smaller than their tile.
+  entityInset: 4,
+  // Items are smaller still, so they look like something lying on the ground.
+  itemInset: 9,
+  // The player's "eye": how big, and how far from the centre toward the facing.
+  eyeSize: 6,
+  eyeDistance: 9,
+  // The dark circle on a tree, and the dark inset on a door.
+  treeTopRadius: 10,
+  doorInsetSide: 8,
+  doorInsetTop: 6,
+  // The HUD panel: left text column, quest column, and spacing between rows.
+  hudTextX: 12,
+  hudQuestColumnX: 350,
+  hudLineHeight: 24,
+  // The speech box.
+  dialogueMargin: 8,
+  dialogueTextX: 24,
+  dialogueLineHeight: 22,
+  // The notice banner at the top.
+  noticeWidth: 360,
+  noticeHeight: 34,
+};
+
+
+/* ============================================================
+   2 · DATA — the world, written out as plain data
+   What to look for: the map is a list of strings you can edit by
+   typing. Items, characters, dialogue and quests are tables. None
+   of this section runs; it is just facts the rest of the file reads.
+   ============================================================ */
+
+// Each character in a map string is one tile. This table says what each
+// character means. Add a row here and you can type the new tile into a map.
+// The bridge is listed as NOT walkable: COLLIDE makes an exception for it
+// once the carpenter has fixed it. That one rule is the whole quest system.
+const tileTypes = {
+  '.': { name: 'grass',  color: colors.grass,  walkable: true  },
+  '=': { name: 'path',   color: colors.path,   walkable: true  },
+  'T': { name: 'tree',   color: colors.tree,   walkable: false },
+  '~': { name: 'water',  color: colors.water,  walkable: false },
+  'B': { name: 'bridge', color: colors.water,  walkable: false },
+  'D': { name: 'door',   color: colors.door,   walkable: true  },
+  '#': { name: 'wall',   color: colors.wall,   walkable: false },
+  '_': { name: 'floor',  color: colors.floor,  walkable: true  },
+  'X': { name: 'exit',   color: colors.door,   walkable: true  },
+};
+
+// Two maps make a world. Each one is just a list of equal-length strings.
+// Row 0 is the top of the map; character 0 of a row is its left edge.
+//
+// To edit the world, edit the text. Swap a '.' for a 'T' and a tree
+// appears. Every row of a map must be the same length; BOOT checks this
+// when the page opens and tells you which row is wrong if one is.
+const maps = {
+  overworld: {
+    title: 'Riverside',
+    rows: [
+      'TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT',  // 0
+      'T.........................~~...........T',  // 1
+      'T.........................~~........T..T',  // 2
+      'T....T..~~~~~..TT.........~~..TT.......T',  // 3
+      'T.......~~~~~..T......TT..~~...........T',  // 4
+      'T.......~~~~~.............~~...........T',  // 5
+      'T.......~~~~~.............~~..#######..T',  // 6
+      'T.........................~~..#######..T',  // 7
+      'T...................TT....~~..#######..T',  // 8
+      'T..TT................T....~~..#######..T',  // 9
+      'T.........T...............~~..###D###..T',  // 10
+      'T.........................~~.....=.....T',  // 11
+      'T................T........~~.....=.....T',  // 12
+      'T.........................~~.....=.....T',  // 13
+      'T.========================BB======.....T',  // 14
+      'T.......=...........=.....~~....=...TT.T',  // 15
+      'T.......=...........=.....~~....=...T..T',  // 16
+      'T.......=....T....TT=.....~~....=......T',  // 17
+      'T.......=...........=.....~~....=......T',  // 18
+      'T...TTTT=TTTT.......=.....~~....=......T',  // 19
+      'T...TTTT=TTTT.......=.....~~..TT=TT..T.T',  // 20
+      'T...TT..=..TT.......=.....~~..T.=.T....T',  // 21
+      'T...TT.....TT.....TT=.....~~..T...T....T',  // 22
+      'T...TT.....TT.......=.....~~..T...T....T',  // 23
+      'T...TTTTTTTTT.......=.....~~..TTTTT....T',  // 24
+      'T...TTTTTTTTT.........TT..~~...........T',  // 25
+      'T......................T..~~..T....T...T',  // 26
+      'T......T......T...........~~...T.......T',  // 27
+      'T.........................~~...........T',  // 28
+      'TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT',  // 29
+    ],
+  },
+  house: {
+    title: "Oswin's House",
+    rows: [
+      '####################',  // 0
+      '#__________________#',  // 1
+      '#__________________#',  // 2
+      '#__________________#',  // 3
+      '#_____________##___#',  // 4
+      '#_____________##___#',  // 5
+      '#__________________#',  // 6
+      '#__________________#',  // 7
+      '#__________________#',  // 8
+      '#__________________#',  // 9
+      '#__________________#',  // 10
+      '#__________________#',  // 11
+      '#__________________#',  // 12
+      '##########X#########',  // 13
+      '####################',  // 14
+    ],
+  },
+};
+
+// Doors connect a tile on one map to a tile on another. When the player
+// steps onto the "from" tile, UPDATE moves them to the "to" tile.
+const doors = [
+  {
+    fromMap: 'overworld', fromX: 33, fromY: 10,
+    toMap: 'house', toX: 10, toY: 12, facing: 'up',
+  },
+  {
+    fromMap: 'house', fromX: 10, fromY: 13,
+    toMap: 'overworld', toX: 33, toY: 11, facing: 'down',
+  },
+];
+
+// Which way each facing direction moves you, in tiles.
+const directionOffsets = {
+  up:    { dx: 0,  dy: -1 },
+  down:  { dx: 0,  dy: 1  },
+  left:  { dx: -1, dy: 0  },
+  right: { dx: 1,  dy: 0  },
+};
+
+// Things lying on the ground. Walk over one to pick it up.
+const items = [
+  { id: 'herb',    name: 'Healing Herb', map: 'overworld', tileX: 8,  tileY: 22, color: '#7fe36b' },
+  { id: 'plank',   name: 'Wooden Plank', map: 'overworld', tileX: 20, tileY: 25, color: '#c98a4b' },
+  { id: 'lantern', name: 'Lantern',      map: 'overworld', tileX: 32, tileY: 22, color: '#ffb347' },
+  { id: 'crown',   name: 'Gold Crown',   map: 'house',     tileX: 3,  tileY: 2,  color: '#ffe14d' },
+];
+
+// The three quests. Each is a flag in state.flags that starts false.
+// The HUD lists these; the NPCs below are what flip them.
+const quests = [
+  { flag: 'healerHelped', title: 'Bring Mira a healing herb' },
+  { flag: 'bridgeBuilt',  title: 'Bring Bram a wooden plank' },
+  { flag: 'elderLit',     title: 'Bring Oswin his lantern' },
+];
+
+// People to talk to. Each one wants an item; giving it sets a flag.
+// Dialogue is a set of named nodes. A node shows lines of text and offers
+// choices; each choice names the next node, or null to stop talking.
+// Trees are at most two nodes deep on purpose: easy to read, easy to extend.
+// UPDATE picks the starting node: 'afterQuest' if the flag is already set,
+// 'offer' if you are carrying what they want, otherwise 'hello'.
+const npcs = [
+  {
+    id: 'mira',
+    name: 'Mira the Healer',
+    map: 'overworld',
+    tileX: 6,
+    tileY: 13,
+    color: '#e56b9f',
+    wantsItem: 'herb',
+    setsFlag: 'healerHelped',
+    dialogue: {
+      hello: {
+        lines: ["Oh, hello. I'm Mira, the village healer.",
+                'A child down the lane has a fever and my basket is empty.'],
+        choices: [{ label: 'Where do herbs grow?', next: 'more' },
+                  { label: "I'll be back.", next: null }],
+      },
+      more: {
+        lines: ['Healing herbs grow in the tree grove to the south-west.',
+                'Look for a gap in the trees on its north side.'],
+        choices: [],
+      },
+      offer: {
+        lines: ['Is that a healing herb in your bag?', 'Please, may I have it?'],
+        choices: [{ label: 'Give her the herb', next: 'thanks', givesItem: 'herb' },
+                  { label: 'Not right now', next: null }],
+      },
+      thanks: {
+        lines: ['Thank you! The child will be well by morning.'],
+        choices: [],
+      },
+      afterQuest: {
+        lines: ["The fever broke. You're a hero around here, you know."],
+        choices: [],
+      },
+    },
+  },
+  {
+    id: 'bram',
+    name: 'Bram the Carpenter',
+    map: 'overworld',
+    tileX: 24,
+    tileY: 13,
+    color: '#5b8dd6',
+    wantsItem: 'plank',
+    setsFlag: 'bridgeBuilt',
+    dialogue: {
+      hello: {
+        lines: ["Name's Bram. I'd fix that bridge if I had one good plank.",
+                "The river's been cutting the village in half for weeks."],
+        choices: [{ label: 'Where can I find a plank?', next: 'more' },
+                  { label: 'Good luck.', next: null }],
+      },
+      more: {
+        lines: ["There's one lying by the trees to the south, I think.",
+                "Bring it and I'll have the bridge up in no time."],
+        choices: [],
+      },
+      offer: {
+        lines: ['That plank is exactly what I need!'],
+        choices: [{ label: 'Hand over the plank', next: 'thanks', givesItem: 'plank' },
+                  { label: 'Keep it', next: null }],
+      },
+      thanks: {
+        lines: ['Watch this... done! The bridge is open. Go on across.'],
+        choices: [],
+      },
+      afterQuest: {
+        lines: ["Sturdy bridge, isn't it? Best work I've done."],
+        choices: [],
+      },
+    },
+  },
+  {
+    id: 'oswin',
+    name: 'Oswin the Elder',
+    map: 'house',
+    tileX: 10,
+    tileY: 4,
+    color: '#b9a7e0',
+    wantsItem: 'lantern',
+    setsFlag: 'elderLit',
+    dialogue: {
+      hello: {
+        lines: ["Who's there? I can barely see you in this dark house.",
+                'My lantern went out days ago.'],
+        choices: [{ label: "Where's your lantern?", next: 'more' },
+                  { label: "I'll go look.", next: null }],
+      },
+      more: {
+        lines: ['I dropped it in the little wood south of my house.',
+                "These old legs won't carry me there."],
+        choices: [],
+      },
+      offer: {
+        lines: ['Is that my lantern? Light it, please!'],
+        choices: [{ label: 'Give him the lantern', next: 'thanks', givesItem: 'lantern' },
+                  { label: 'Not yet', next: null }],
+      },
+      thanks: {
+        lines: ['Ah, light! Take the old crown on the shelf as thanks.',
+                "It's been gathering dust for fifty years."],
+        choices: [],
+      },
+      afterQuest: {
+        lines: ['Thanks to you I can read again. Come visit anytime.'],
+        choices: [],
+      },
+    },
+  },
+];
+
+// Two lookups into the tables above, used by UPDATE and RENDER alike.
+function findItemById(itemId) {
+  for (const item of items) {
+    if (item.id === itemId) return item;
+  }
+  return null;
+}
+
+function findNpcById(npcId) {
+  for (const npc of npcs) {
+    if (npc.id === npcId) return npc;
+  }
+  return null;
+}
+
+
+/* ============================================================
+   3 · STATE — the one object that remembers everything
+   What to look for: there is exactly one `state`. If the game
+   "knows" something (where you are, what you carry, what you've
+   done), it is a field in here. Nowhere else.
+   ============================================================ */
+
+// This is the single source of truth. Every fact about the world that can
+// change lives in this one object, so there is nowhere for a bug to hide.
+//
+// Only two other things in the file change at runtime, and neither is
+// game knowledge: `intents` in INPUT (a mailbox from the keyboard) and the
+// stopwatch inside LOOP (how much time has passed). Neither is saved and
+// neither is drawn.
+const state = {
+  // Which entry in `maps` we are standing in.
+  currentMap: 'overworld',
+
+  player: {
+    tileX: 3,
+    tileY: 14,
+    facing: 'right',
+    // Seconds until the player may take the next step. Counts down in UPDATE.
+    stepCooldown: 0,
+  },
+
+  // Item ids in the order picked up, e.g. ['herb', 'plank'].
+  inventory: [],
+
+  // Item ids that have ever been picked up, so they don't reappear on the
+  // ground after being given away. e.g. { herb: true }.
+  pickedUpItems: {},
+
+  // The quest flags. false until the matching NPC receives their item.
+  flags: {
+    healerHelped: false,
+    bridgeBuilt: false,
+    elderLit: false,
+  },
+
+  // null when nobody is talking. Otherwise which NPC, which dialogue node,
+  // and which choice is highlighted.
+  dialogue: null,
+
+  // The short yellow message at the top of the screen.
+  notice: {
+    text: '',
+    secondsLeft: 0,
+  },
+};
+
+
+/* ============================================================
+   4 · INPUT — keyboard events become intents
+   What to look for: this section never moves the player. It only
+   records what the player is asking for. UPDATE decides whether
+   to grant it.
+   ============================================================ */
+
+// The mailbox between the keyboard and UPDATE. Two kinds of field:
+//  - "move*" are true for as long as the key is held down.
+//  - "*Pressed" are true from the moment a key goes down until UPDATE has
+//    read them once. That is how one tap of Space means one action.
+const intents = {
+  moveUp: false,
+  moveDown: false,
+  moveLeft: false,
+  moveRight: false,
+  interactPressed: false,
+  menuUpPressed: false,
+  menuDownPressed: false,
+  savePressed: false,
+  loadPressed: false,
+  newGamePressed: false,
+};
+
+// Arrow keys and WASD do the same thing. `isDown` is true on keydown and
+// false on keyup, so this one function handles both events.
+function setMovementIntent(key, isDown) {
+  if (key === 'arrowup' || key === 'w') intents.moveUp = isDown;
+  if (key === 'arrowdown' || key === 's') intents.moveDown = isDown;
+  if (key === 'arrowleft' || key === 'a') intents.moveLeft = isDown;
+  if (key === 'arrowright' || key === 'd') intents.moveRight = isDown;
+}
+
+// Every key the game listens to, in lower case.
+const keysTheGameUses = [
+  'arrowup', 'arrowdown', 'arrowleft', 'arrowright',
+  'w', 'a', 's', 'd',
+  ' ', 'k', 'l', 'n',
+];
+
+function onKeyDown(event) {
+  // Lower-case so Shift+W still counts as W.
+  const key = event.key.toLowerCase();
+  if (keysTheGameUses.includes(key)) {
+    // Stop arrows and Space from scrolling the page underneath the game.
+    event.preventDefault();
+  }
+  setMovementIntent(key, true);
+
+  // Holding a key down makes the browser fire keydown again and again.
+  // That is harmless for movement (moveUp just becomes true again) but a
+  // held Space must not "talk" sixty times, so repeats stop here.
+  if (event.repeat) return;
+
+  if (key === ' ') intents.interactPressed = true;
+  if (key === 'arrowup' || key === 'w') intents.menuUpPressed = true;
+  if (key === 'arrowdown' || key === 's') intents.menuDownPressed = true;
+  if (key === 'k') intents.savePressed = true;
+  if (key === 'l') intents.loadPressed = true;
+  if (key === 'n') intents.newGamePressed = true;
+}
+
+function onKeyUp(event) {
+  const key = event.key.toLowerCase();
+  setMovementIntent(key, false);
+}
+
+// UPDATE calls this at the end of every step so a press counts once.
+function clearPressedIntents() {
+  intents.interactPressed = false;
+  intents.menuUpPressed = false;
+  intents.menuDownPressed = false;
+  intents.savePressed = false;
+  intents.loadPressed = false;
+  intents.newGamePressed = false;
+}
+
+
+/* ============================================================
+   5 · UPDATE — the rules of the world
+   What to look for: this is the only place the world changes.
+   Every function here reads intents and writes state, and does
+   nothing else. If you want the game to behave differently,
+   you change something in this section.
+   ============================================================ */
+
+// One fixed slice of game time. Read this top to bottom and you have the
+// order of everything that can happen in the world.
+function update(stepSeconds) {
+  updateNotice(stepSeconds);
+  updateSaveKeys();
+  if (state.dialogue === null) {
+    updatePlayerMovement(stepSeconds);
+    updateTalking();
+  } else {
+    // While a speech box is open the same keys mean something else.
+    updateDialogue();
+  }
+  clearPressedIntents();
+}
+
+// Put a short message on screen. RENDER shows it while secondsLeft > 0.
+function showNotice(text) {
+  state.notice.text = text;
+  state.notice.secondsLeft = noticeDurationInSeconds;
+}
+
+function updateNotice(stepSeconds) {
+  if (state.notice.secondsLeft > 0) {
+    state.notice.secondsLeft -= stepSeconds;
+  }
+}
+
+// K saves, L loads, N forgets the save and reloads the page, which is the
+// simplest possible "new game": a fresh page starts from the STATE section.
+function updateSaveKeys() {
+  if (intents.savePressed) {
+    if (saveGame()) {
+      showNotice('Saved!');
+    } else {
+      showNotice('Could not save (storage blocked)');
+    }
+  }
+  if (intents.loadPressed) {
+    if (loadGame()) {
+      showNotice('Loaded your save');
+    } else {
+      showNotice('No save found');
+    }
+  }
+  if (intents.newGamePressed) {
+    deleteSave();
+    location.reload();
+  }
+}
+
+// Walking is grid-based: the player is always on a whole tile and hops to
+// the next one. The cooldown is what makes holding a key a steady walk
+// instead of a blur.
+function updatePlayerMovement(stepSeconds) {
+  const player = state.player;
+  player.stepCooldown -= stepSeconds;
+  if (player.stepCooldown > 0) return;
+  player.stepCooldown = 0;
+
+  let wantedFacing = null;
+  if (intents.moveUp) wantedFacing = 'up';
+  else if (intents.moveDown) wantedFacing = 'down';
+  else if (intents.moveLeft) wantedFacing = 'left';
+  else if (intents.moveRight) wantedFacing = 'right';
+  if (wantedFacing === null) return;
+
+  // Turn first, so pressing a key toward a wall still faces you at it.
+  player.facing = wantedFacing;
+  const offset = directionOffsets[wantedFacing];
+  const targetX = player.tileX + offset.dx;
+  const targetY = player.tileY + offset.dy;
+  if (!canWalkTo(state.currentMap, targetX, targetY)) return;
+
+  player.tileX = targetX;
+  player.tileY = targetY;
+  player.stepCooldown = 1 / playerStepsPerSecond;
+  pickUpItemUnderPlayer();
+  goThroughDoorUnderPlayer();
+}
+
+// Changing area is nothing more than changing three fields of state.
+// RENDER draws whichever map `currentMap` names; it never knows we moved.
+function goThroughDoorUnderPlayer() {
+  const door = findDoorAt(state.currentMap, state.player.tileX, state.player.tileY);
+  if (door === null) return;
+  state.currentMap = door.toMap;
+  state.player.tileX = door.toX;
+  state.player.tileY = door.toY;
+  state.player.facing = door.facing;
+  showNotice('Entered ' + maps[door.toMap].title);
+}
+
+// Standing on an item that is still on the ground puts it in the bag.
+function pickUpItemUnderPlayer() {
+  for (const item of items) {
+    if (item.map !== state.currentMap) continue;
+    if (state.pickedUpItems[item.id]) continue;
+    if (item.tileX !== state.player.tileX || item.tileY !== state.player.tileY) continue;
+    state.pickedUpItems[item.id] = true;
+    state.inventory.push(item.id);
+    showNotice('Picked up ' + item.name);
+  }
+}
+
+function hasItem(itemId) {
+  return state.inventory.includes(itemId);
+}
+
+// Take one item out of the bag. Loops instead of a one-liner so the
+// "find it, then remove it" idea is visible.
+function removeItemFromInventory(itemId) {
+  for (let index = 0; index < state.inventory.length; index++) {
+    if (state.inventory[index] === itemId) {
+      state.inventory.splice(index, 1);
+      return;
+    }
+  }
+}
+
+// Pressing Space while facing an NPC opens their speech box. Which node the
+// conversation starts on depends on what you have done so far.
+function updateTalking() {
+  if (!intents.interactPressed) return;
+  const offset = directionOffsets[state.player.facing];
+  const facingX = state.player.tileX + offset.dx;
+  const facingY = state.player.tileY + offset.dy;
+  const npc = findNpcAt(state.currentMap, facingX, facingY);
+  if (npc === null) return;
+
+  let startingNode = 'hello';
+  if (state.flags[npc.setsFlag]) {
+    startingNode = 'afterQuest';
+  } else if (hasItem(npc.wantsItem)) {
+    startingNode = 'offer';
+  }
+  state.dialogue = { npcId: npc.id, nodeKey: startingNode, choiceIndex: 0 };
+}
+
+// Up/Down move the highlight, Space picks. A choice can hand over an item
+// and then either jump to another node or (next: null) end the talk.
+function updateDialogue() {
+  const dialogue = state.dialogue;
+  const npc = findNpcById(dialogue.npcId);
+  const node = npc.dialogue[dialogue.nodeKey];
+
+  if (intents.menuUpPressed && dialogue.choiceIndex > 0) {
+    dialogue.choiceIndex -= 1;
+  }
+  if (intents.menuDownPressed && dialogue.choiceIndex < node.choices.length - 1) {
+    dialogue.choiceIndex += 1;
+  }
+  if (!intents.interactPressed) return;
+
+  if (node.choices.length === 0) {
+    state.dialogue = null;
+    return;
+  }
+  const choice = node.choices[dialogue.choiceIndex];
+  if (choice.givesItem) {
+    giveItemToNpc(choice.givesItem, npc);
+  }
+  if (choice.next === null) {
+    state.dialogue = null;
+  } else {
+    dialogue.nodeKey = choice.next;
+    dialogue.choiceIndex = 0;
+  }
+}
+
+// The moment a quest completes: the item leaves the bag and a flag flips.
+// COLLIDE and RENDER read the flags, so the world changes on its own.
+function giveItemToNpc(itemId, npc) {
+  removeItemFromInventory(itemId);
+  state.flags[npc.setsFlag] = true;
+  showNotice('Quest complete: ' + findItemById(itemId).name + ' delivered');
+}
+
+
+/* ============================================================
+   6 · COLLIDE — what can you walk on, and where does it lead
+   What to look for: tile lookups, the walkability rule, and doors
+   between areas. Kept apart from UPDATE so you can read "why can't
+   I walk through a tree?" on its own.
+   ============================================================ */
+
+// Which character is at this spot on this map? Off the map counts as a
+// wall, so nobody can ever walk out of the world.
+function tileAt(mapName, tileX, tileY) {
+  const rows = maps[mapName].rows;
+  if (tileY < 0 || tileY >= rows.length) return '#';
+  if (tileX < 0 || tileX >= rows[tileY].length) return '#';
+  return rows[tileY][tileX];
+}
+
+// Is this tile the "from" side of a door? Returns the door, or null.
+function findDoorAt(mapName, tileX, tileY) {
+  for (const door of doors) {
+    if (door.fromMap === mapName && door.fromX === tileX && door.fromY === tileY) {
+      return door;
+    }
+  }
+  return null;
+}
+
+// Is somebody standing on this tile? Returns the NPC, or null.
+function findNpcAt(mapName, tileX, tileY) {
+  for (const npc of npcs) {
+    if (npc.map === mapName && npc.tileX === tileX && npc.tileY === tileY) {
+      return npc;
+    }
+  }
+  return null;
+}
+
+// The whole answer to "why can't I walk through a tree?" is here.
+function canWalkTo(mapName, tileX, tileY) {
+  // People are solid too.
+  if (findNpcAt(mapName, tileX, tileY) !== null) {
+    return false;
+  }
+
+  const tileCharacter = tileAt(mapName, tileX, tileY);
+
+  // The bridge is the one tile whose walkability depends on state.
+  if (tileCharacter === 'B') {
+    return state.flags.bridgeBuilt;
+  }
+  return tileTypes[tileCharacter].walkable;
+}
+
+
+/* ============================================================
+   7 · RENDER — reads state, draws pixels, changes nothing
+   What to look for: not one line in this section assigns to
+   `state`. Drawing is a pure read. The loop checks that promise
+   every frame (see the end of this section).
+   ============================================================ */
+
+// The canvas is the rectangle of pixels on the page. The "context" is the
+// set of drawing commands (fillRect, fillText, arc...) for that canvas.
+const canvas = document.getElementById('gameCanvas');
+const context = canvas.getContext('2d');
+
+// Three kinds of position show up in this section. Keep them apart:
+//   map tiles    where something is in the world      (npc.tileX)
+//   screen tiles map tile minus the camera's tile     (tileX - camera.tileX)
+//   pixels       screen tile times tileSizeInPixels   (what fillRect wants)
+// Every draw function does that same two-step conversion.
+
+// The camera is the top-left tile of the map that appears in the viewport.
+// It follows the player and stops at the map edges so you never see past
+// them. This function only calculates; it does not store anything.
+function computeCamera() {
+  const map = maps[state.currentMap];
+  const mapWidthInTiles = map.rows[0].length;
+  const mapHeightInTiles = map.rows.length;
+
+  let cameraX = state.player.tileX - Math.floor(viewportWidthInTiles / 2);
+  let cameraY = state.player.tileY - Math.floor(viewportHeightInTiles / 2);
+
+  // Math.max(0, ...) handles a map smaller than the viewport, like the house.
+  const furthestCameraX = Math.max(0, mapWidthInTiles - viewportWidthInTiles);
+  const furthestCameraY = Math.max(0, mapHeightInTiles - viewportHeightInTiles);
+  if (cameraX < 0) cameraX = 0;
+  if (cameraY < 0) cameraY = 0;
+  if (cameraX > furthestCameraX) cameraX = furthestCameraX;
+  if (cameraY > furthestCameraY) cameraY = furthestCameraY;
+
+  return { tileX: cameraX, tileY: cameraY };
+}
+
+// Draw one whole frame, back to front: ground, things on the ground,
+// people, the player, then the flat interface panels on top.
+function render() {
+  const camera = computeCamera();
+  drawTiles(camera);
+  drawItems(camera);
+  drawNpcs(camera);
+  drawPlayer(camera);
+  drawHud();
+  if (state.dialogue !== null) {
+    drawDialogueBox();
+  }
+  drawNotice();
+}
+
+// The bridge is the one tile whose look depends on state: water until the
+// carpenter fixes it, planks afterwards.
+function tileColorFor(tileCharacter) {
+  if (tileCharacter === 'B' && state.flags.bridgeBuilt) {
+    return colors.bridge;
+  }
+  return tileTypes[tileCharacter].color;
+}
+
+// Only the tiles inside the viewport are drawn. Tiles past the edge of a
+// small map are painted black.
+function drawTiles(camera) {
+  const map = maps[state.currentMap];
+  for (let screenRow = 0; screenRow < viewportHeightInTiles; screenRow++) {
+    for (let screenCol = 0; screenCol < viewportWidthInTiles; screenCol++) {
+      const mapX = camera.tileX + screenCol;
+      const mapY = camera.tileY + screenRow;
+      const pixelX = screenCol * tileSizeInPixels;
+      const pixelY = screenRow * tileSizeInPixels;
+
+      const isOutsideMap = mapY < 0 || mapY >= map.rows.length ||
+        mapX < 0 || mapX >= map.rows[0].length;
+      if (isOutsideMap) {
+        context.fillStyle = colors.outsideMap;
+        context.fillRect(pixelX, pixelY, tileSizeInPixels, tileSizeInPixels);
+        continue;
+      }
+
+      const tileCharacter = map.rows[mapY][mapX];
+      context.fillStyle = tileColorFor(tileCharacter);
+      context.fillRect(pixelX, pixelY, tileSizeInPixels, tileSizeInPixels);
+      drawTileDetail(tileCharacter, pixelX, pixelY);
+    }
+  }
+}
+
+// A little extra shape on some tiles so a tree isn't just a green square.
+// Pure decoration: delete this function's body and the game still works.
+function drawTileDetail(tileCharacter, pixelX, pixelY) {
+  const half = tileSizeInPixels / 2;
+  if (tileCharacter === 'T') {
+    context.fillStyle = colors.treeTop;
+    context.beginPath();
+    context.arc(pixelX + half, pixelY + half, layout.treeTopRadius, 0, Math.PI * 2);
+    context.fill();
+  }
+  if (tileCharacter === 'D' || tileCharacter === 'X') {
+    const side = layout.doorInsetSide;
+    const top = layout.doorInsetTop;
+    context.fillStyle = colors.doorInner;
+    context.fillRect(pixelX + side, pixelY + top,
+      tileSizeInPixels - side * 2, tileSizeInPixels - top);
+  }
+}
+
+// Items are small squares. An item is skipped if it is on another map or
+// has already been picked up.
+function drawItems(camera) {
+  for (const item of items) {
+    if (item.map !== state.currentMap) continue;
+    if (state.pickedUpItems[item.id]) continue;
+    const pixelX = (item.tileX - camera.tileX) * tileSizeInPixels;
+    const pixelY = (item.tileY - camera.tileY) * tileSizeInPixels;
+    const inset = layout.itemInset;
+    context.fillStyle = item.color;
+    context.fillRect(pixelX + inset, pixelY + inset, tileSizeInPixels - inset * 2,
+      tileSizeInPixels - inset * 2);
+  }
+}
+
+// NPCs are colored squares with their name floating above.
+function drawNpcs(camera) {
+  for (const npc of npcs) {
+    if (npc.map !== state.currentMap) continue;
+    const pixelX = (npc.tileX - camera.tileX) * tileSizeInPixels;
+    const pixelY = (npc.tileY - camera.tileY) * tileSizeInPixels;
+    const inset = layout.entityInset;
+    context.fillStyle = npc.color;
+    context.fillRect(pixelX + inset, pixelY + inset, tileSizeInPixels - inset * 2,
+      tileSizeInPixels - inset * 2);
+    context.fillStyle = colors.hudText;
+    context.font = fonts.small;
+    context.textAlign = 'center';
+    context.fillText(npc.name, pixelX + tileSizeInPixels / 2, pixelY - layout.entityInset);
+  }
+}
+
+// The player is a square with an "eye" on the side they are facing, so you
+// can see which tile Space will talk to.
+function drawPlayer(camera) {
+  const player = state.player;
+  const pixelX = (player.tileX - camera.tileX) * tileSizeInPixels;
+  const pixelY = (player.tileY - camera.tileY) * tileSizeInPixels;
+  const inset = layout.entityInset;
+  context.fillStyle = colors.player;
+  context.fillRect(pixelX + inset, pixelY + inset, tileSizeInPixels - inset * 2,
+    tileSizeInPixels - inset * 2);
+
+  // The eye sits between the centre and the facing edge.
+  const offset = directionOffsets[player.facing];
+  const centreX = pixelX + tileSizeInPixels / 2;
+  const centreY = pixelY + tileSizeInPixels / 2;
+  const eyeX = centreX + offset.dx * layout.eyeDistance - layout.eyeSize / 2;
+  const eyeY = centreY + offset.dy * layout.eyeDistance - layout.eyeSize / 2;
+  context.fillStyle = colors.playerEye;
+  context.fillRect(eyeX, eyeY, layout.eyeSize, layout.eyeSize);
+}
+
+// The panel under the world: where you are, what you carry, and the quests.
+function drawHud() {
+  const top = viewportHeightInTiles * tileSizeInPixels;
+  const textX = layout.hudTextX;
+  const lineHeight = layout.hudLineHeight;
+  context.fillStyle = colors.hudBackground;
+  context.fillRect(0, top, canvas.width, hudHeightInPixels);
+  context.textAlign = 'left';
+  context.font = fonts.hud;
+
+  context.fillStyle = colors.hudText;
+  context.fillText('Place: ' + maps[state.currentMap].title, textX, top + lineHeight);
+
+  let bagText = '(empty)';
+  if (state.inventory.length > 0) {
+    const names = [];
+    for (const itemId of state.inventory) {
+      names.push(findItemById(itemId).name);
+    }
+    bagText = names.join(', ');
+  }
+  context.fillText('Bag: ' + bagText, textX, top + lineHeight * 2);
+
+  context.fillStyle = colors.hudDim;
+  context.font = fonts.small;
+  const helpText = 'Arrows/WASD move · Space talk · K save · L load · N new game';
+  context.fillText(helpText, textX, top + hudHeightInPixels - lineHeight / 2);
+
+  context.font = fonts.hud;
+  for (let index = 0; index < quests.length; index++) {
+    const quest = quests[index];
+    let mark = '[ ] ';
+    context.fillStyle = colors.hudDim;
+    if (state.flags[quest.flag]) {
+      mark = '[x] ';
+      context.fillStyle = colors.questDone;
+    }
+    const lineY = top + lineHeight * (index + 1);
+    context.fillText(mark + quest.title, layout.hudQuestColumnX, lineY);
+  }
+}
+
+// The speech box sits over the bottom of the world while someone talks.
+function drawDialogueBox() {
+  const npc = findNpcById(state.dialogue.npcId);
+  const node = npc.dialogue[state.dialogue.nodeKey];
+  const margin = layout.dialogueMargin;
+  const textX = layout.dialogueTextX;
+  const lineHeight = layout.dialogueLineHeight;
+
+  // The box grows to fit: a name line, the text lines, the choices (or the
+  // "continue" hint), plus a line's worth of breathing room.
+  const lineCount = 1 + node.lines.length + Math.max(1, node.choices.length);
+  const boxHeight = (lineCount + 1) * lineHeight;
+  const boxTop = viewportHeightInTiles * tileSizeInPixels - boxHeight - margin;
+  context.fillStyle = colors.dialogueBox;
+  context.fillRect(margin, boxTop, canvas.width - margin * 2, boxHeight);
+  context.textAlign = 'left';
+  context.font = fonts.dialogue;
+
+  context.fillStyle = colors.dialogueName;
+  let lineY = boxTop + lineHeight * 1.2;
+  context.fillText(npc.name, textX, lineY);
+
+  context.fillStyle = colors.dialogueText;
+  for (const line of node.lines) {
+    lineY += lineHeight;
+    context.fillText(line, textX, lineY);
+  }
+  drawDialogueChoices(node, textX, lineY + lineHeight);
+}
+
+// The choices under the speech text, with a ">" beside the highlighted one.
+function drawDialogueChoices(node, textX, firstLineY) {
+  if (node.choices.length === 0) {
+    context.fillStyle = colors.dialogueChoice;
+    context.fillText('(Space to continue)', textX, firstLineY);
+    return;
+  }
+  for (let index = 0; index < node.choices.length; index++) {
+    const lineY = firstLineY + index * layout.dialogueLineHeight;
+    let marker = '   ';
+    context.fillStyle = colors.dialogueChoice;
+    if (index === state.dialogue.choiceIndex) {
+      marker = ' > ';
+      context.fillStyle = colors.dialogueChoiceSelected;
+    }
+    context.fillText(marker + node.choices[index].label, textX, lineY);
+  }
+}
+
+// The yellow banner for "Saved!" and pickups. Nothing is drawn once the
+// timer that UPDATE counts down reaches zero.
+function drawNotice() {
+  if (state.notice.secondsLeft <= 0) return;
+  const centreX = canvas.width / 2;
+  const boxTop = layout.dialogueMargin;
+  context.font = fonts.notice;
+  context.textAlign = 'center';
+  context.fillStyle = colors.dialogueBox;
+  context.fillRect(centreX - layout.noticeWidth / 2, boxTop, layout.noticeWidth,
+    layout.noticeHeight);
+  context.fillStyle = colors.notice;
+  // Text is drawn from its baseline, so nudge it down inside the box.
+  context.fillText(state.notice.text, centreX, boxTop + layout.noticeHeight * 0.7);
+}
+
+// THE PROMISE, ENFORCED. LOOP takes a text snapshot of `state` before
+// render() and hands it here afterwards. If drawing changed anything, the
+// two strings differ and the game halts with an error naming the crime.
+function assertRenderChangedNothing(stateBeforeRender) {
+  if (!checkRenderPurity) return;
+  const stateAfterRender = JSON.stringify(state);
+  if (stateAfterRender !== stateBeforeRender) {
+    throw new Error('RENDER changed state! Drawing must only read.');
+  }
+}
+
+
+/* ============================================================
+   8 · LOOP — the heartbeat
+   What to look for: the browser calls `frame` about sixty times a
+   second. Each call catches the simulation up in fixed steps, then
+   draws once. This is the most important dozen lines in the file.
+   ============================================================ */
+
+// The loop's stopwatch. Not game state: never saved, never drawn.
+let lastFrameTimeInMs = 0;
+let unsimulatedSeconds = 0;
+
+function frame(nowInMs) {
+  let elapsedSeconds = (nowInMs - lastFrameTimeInMs) / 1000;
+  if (elapsedSeconds > maxFrameGapInSeconds) elapsedSeconds = maxFrameGapInSeconds;
+  lastFrameTimeInMs = nowInMs;
+  unsimulatedSeconds += elapsedSeconds;
+  while (unsimulatedSeconds >= fixedStepInSeconds) {
+    update(fixedStepInSeconds);
+    unsimulatedSeconds -= fixedStepInSeconds;
+  }
+  const stateBeforeRender = JSON.stringify(state);
+  render();
+  assertRenderChangedNothing(stateBeforeRender);
+  requestAnimationFrame(frame);
+}
+
+
+/* ============================================================
+   9 · SAVE — remembering between visits
+   What to look for: the whole save is `state` turned into text and
+   stored in the browser. Loading is the reverse. Both are wrapped
+   in try/catch because storage can be missing or full.
+   ============================================================ */
+
+// Only the parts of state worth remembering are saved. The open speech box
+// and the notice are moments, not progress, so they are left out.
+// Returns true on success so UPDATE can show "Saved!".
+function saveGame() {
+  const snapshot = {
+    currentMap: state.currentMap,
+    player: state.player,
+    inventory: state.inventory,
+    pickedUpItems: state.pickedUpItems,
+    flags: state.flags,
+  };
+  try {
+    localStorage.setItem(saveSlotName, JSON.stringify(snapshot));
+    return true;
+  } catch (error) {
+    // Private browsing, a full disk, or a school policy can all block storage.
+    return false;
+  }
+}
+
+// The one function outside UPDATE that writes to state, because restoring
+// a save IS writing state. Only UPDATE and BOOT ever call it.
+// Returns true if a save was found and applied.
+function loadGame() {
+  try {
+    const savedText = localStorage.getItem(saveSlotName);
+    if (savedText === null) return false;
+    const saved = JSON.parse(savedText);
+    state.currentMap = saved.currentMap;
+    state.player.tileX = saved.player.tileX;
+    state.player.tileY = saved.player.tileY;
+    state.player.facing = saved.player.facing;
+    state.player.stepCooldown = 0;
+    state.inventory = saved.inventory;
+    state.pickedUpItems = saved.pickedUpItems;
+    state.flags = saved.flags;
+    state.dialogue = null;
+    return true;
+  } catch (error) {
+    // A corrupted or hand-edited save is ignored rather than crashing.
+    return false;
+  }
+}
+
+function deleteSave() {
+  try {
+    localStorage.removeItem(saveSlotName);
+  } catch (error) {
+    // Nothing to do: if storage is unavailable there was no save anyway.
+  }
+}
+
+
+/* ============================================================
+   10 · BOOT — wire it up and start
+   What to look for: this is where the program begins. It sizes
+   the canvas, listens for keys, tries to load a save, and asks
+   the browser for the first frame. Everything after that is LOOP.
+   ============================================================ */
+
+// Two checks on the DATA section, run once before anything moves. They
+// exist for the moment you edit a map or add an NPC and mistype something:
+// instead of a silent glitch you get an error that names the mistake.
+function checkMapRowsAreEqualLength() {
+  for (const mapName in maps) {
+    const rows = maps[mapName].rows;
+    for (let rowIndex = 0; rowIndex < rows.length; rowIndex++) {
+      if (rows[rowIndex].length !== rows[0].length) {
+        throw new Error('Map "' + mapName + '" row ' + rowIndex + ' is ' +
+          rows[rowIndex].length + ' characters long but row 0 is ' + rows[0].length);
+      }
+      for (const tileCharacter of rows[rowIndex]) {
+        if (tileTypes[tileCharacter] === undefined) {
+          throw new Error('Map "' + mapName + '" row ' + rowIndex +
+            ' uses "' + tileCharacter + '", which is not in tileTypes');
+        }
+      }
+    }
+  }
+}
+
+function checkThingsAreOnRealTiles() {
+  for (const item of items) {
+    if (tileAt(item.map, item.tileX, item.tileY) === '#') {
+      throw new Error('Item "' + item.id + '" is on a wall or off the map');
+    }
+  }
+  for (const npc of npcs) {
+    if (tileAt(npc.map, npc.tileX, npc.tileY) === '#') {
+      throw new Error('NPC "' + npc.id + '" is on a wall or off the map');
+    }
+  }
+  for (const door of doors) {
+    if (maps[door.toMap] === undefined) {
+      throw new Error('A door leads to "' + door.toMap + '", which is not in maps');
+    }
+  }
+}
+
+checkMapRowsAreEqualLength();
+checkThingsAreOnRealTiles();
+
+canvas.width = viewportWidthInTiles * tileSizeInPixels;
+canvas.height = viewportHeightInTiles * tileSizeInPixels + hudHeightInPixels;
+
+window.addEventListener('keydown', onKeyDown);
+window.addEventListener('keyup', onKeyUp);
+
+// Coming back after closing the tab picks up where you left off.
+if (loadGame()) {
+  showNotice('Welcome back. Save loaded.');
+}
+
+requestAnimationFrame(frame);
+
+</script>
+</body>
+</html>

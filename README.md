@@ -1,11 +1,12 @@
 # How to Read an Open-World Video Game
+An open-world adventure game **built to be read, not played.** One HTML file, ~1,200 lines,
+no build, no dependencies, no internet. It runs in Microsoft Edge and Chrome.
 
-An open-world adventure game **built to be read, not played.**
+**Open it:** download `game.html` and double-click it. Arrows/WASD walk, Space talks, K saves,
+L loads, N starts over. Three quests, two maps, five minutes.
 
-One HTML file. No build, no dependencies, no internet. Double-click `game.html` and it runs.
+**Read it:** open `game.html` in a text editor with line numbers. It has ten numbered sections;
+the banner at the top of each says what to look for. Start at the bottom, `10 · BOOT`.
 
-It exists because a student asked how video games are made and picked the genre. The game is the
-excuse; the source is the point. Start with **[`TEARDOWN.md`](./TEARDOWN.md)** — six short reads that
-walk you through the file — then **[`CHANGE-ME.md`](./CHANGE-ME.md)** when you want to break it.
-
-The spec everything was built against: **[`PRD.md`](./PRD.md)**.
+**Guided:** [`TEARDOWN.md`](./TEARDOWN.md) is six 10–15 minute reads with questions and answers.
+[`CHANGE-ME.md`](./CHANGE-ME.md) is ten edits, easiest first. The spec is [`PRD.md`](./PRD.md).
