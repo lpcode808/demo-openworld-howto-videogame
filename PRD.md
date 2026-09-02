@@ -2,7 +2,7 @@
 
 **An open-world adventure game built to be read, not played.**
 
-Status: v1.1 · P1 built and merged 2026-09-01 · X-RAY amendment added 2026-09-02 (§4a, §5a, §8)
+Status: v1.2 · P1 built 2026-09-01 · X-RAY and pause/step added 2026-09-02 (§4a, §5a, §8)
 
 ---
 
@@ -133,13 +133,13 @@ Rules, so it stays a window onto the game and never becomes part of it:
 - It keeps **one** small object of its own memory (frame counts and the recent-changes log),
   named in STATE's comment as the third and last thing outside `state` that changes at runtime.
   Never saved, never drawn on the canvas.
-- Its only hook into the game is **three lines in LOOP**: a snapshot of `state` before UPDATE runs,
-  a counter of updates this frame, and one call after the purity check. The "what changed" log is
-  a diff of that snapshot against the one the purity check already takes, so UPDATE itself is not
-  instrumented at all — that is the teaching payload: *the same snapshot that proves RENDER
-  changed nothing shows you exactly what UPDATE did change.*
+- Its only hook into the game is **four lines in LOOP**: a snapshot of `state` before UPDATE runs,
+  a pause-check call, a counter of updates this frame, and one call after the purity check. The
+  "what changed" log is a diff of that snapshot against the one the purity check already takes, so
+  UPDATE itself is not instrumented at all — that is the teaching payload: *the same snapshot
+  that proves RENDER changed nothing shows you exactly what UPDATE did change.*
 - It listens for the X key with its own `keydown` handler so INPUT stays about the game.
-- **Delete section 11, the `<aside>`, and the three X-ray lines in LOOP, and the game is exactly
+- **Delete section 11, the `<aside>`, and the four X-ray lines in LOOP, and the game is exactly
   the same.** Every X-ray constant lives inside section 11 for that reason, including its
   localStorage key.
 - All of §3's style rules apply to it unchanged. The file's target stays 1,200–1,800 lines.
@@ -237,10 +237,20 @@ Mechanically checkable — run these before calling it done:
 - [ ] All four deliverables present; `TEARDOWN.md` line ranges match the actual file.
 - [ ] (v1.1) X pressed in the game shows the panel; X again hides it; the choice survives F5.
 - [ ] (v1.1) No assignment to `state.` or `intents.` anywhere inside section `11 · X-RAY`.
-- [ ] (v1.1) Deleting section 11, the `<aside>` and the three X-ray lines in LOOP leaves a game
+- [ ] (v1.1) Deleting section 11, the `<aside>` and the four X-ray lines in LOOP leaves a game
       that opens with zero console errors and walks — the X-ray is removable by construction.
 - [ ] (v1.1) `node tools/check.mjs`, `node tools/playthrough.mjs` and `node tools/check-doc-lines.mjs`
       all exit 0. These are maintainer tools, not student deliverables.
+- [ ] (v1.2) Panel open, P freezes the world while the panel keeps redrawing; P again resumes
+      with no burst of catch-up ticks.
+- [ ] (v1.2) While paused, `.` runs exactly one update: "updates run" rises by 1 and the
+      change log gains that tick's fields.
+- [ ] (v1.2) P and `.` do nothing while the panel is hidden; X while paused hides the panel
+      and resumes.
+- [ ] (v1.2) Pause survives neither F5 nor K/L; panel-open still does.
+- [ ] (v1.2) `xrayMemory` remains the only X-ray memory; STATE's "three other things" comment
+      is still true.
+- [ ] (v1.2) All three `tools/*.mjs` exit 0 after TEARDOWN/CHANGE-ME ranges are refreshed.
 
 Judged by a human, not the agent:
 
