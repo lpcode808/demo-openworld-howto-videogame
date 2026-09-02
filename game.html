@@ -64,6 +64,10 @@
     max-height: 160px;
     overflow-y: auto;
   }
+  /* The whole of `state` is short enough to show at once; that is the point. */
+  aside#xray pre#xrayState {
+    max-height: 420px;
+  }
   /* An intent that is currently true (a key held, a press just seen) is
      bright; everything else is dim, so "what is on right now" jumps out. */
   aside#xray li {
@@ -1340,7 +1344,11 @@ function roundForDisplay(key, value) {
 // nested objects, so a change inside state.player shows up as the readable
 // "player.tileX", not as "player changed".
 function listChangedFields(before, after, pathSoFar, changesOut) {
-  const allKeys = new Set([...Object.keys(before), ...Object.keys(after)]);
+  // Every key that appears in either snapshot, listed once.
+  const allKeys = Object.keys(after);
+  for (const key in before) {
+    if (!allKeys.includes(key)) allKeys.push(key);
+  }
   for (const key of allKeys) {
     const beforeValue = before[key];
     const afterValue = after[key];
