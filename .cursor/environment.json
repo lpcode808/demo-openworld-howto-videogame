@@ -1,0 +1,5 @@
+{
+  "name": "demo-openworld-howto-videogame",
+  "user": "ubuntu",
+  "install": "echo 'Zero dependencies. Open game.html from file:// when built.'"
+}
