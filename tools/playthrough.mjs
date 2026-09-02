@@ -40,7 +40,7 @@ async function getState(page) {
 // script-level consts that never change at runtime, so one read is enough.
 async function getWorld(page) {
   return page.evaluate(() => JSON.parse(JSON.stringify({
-    maps, items, npcs, doors, tileTypes, saveSlotName,
+    maps, items, npcs, doors, tileTypes, saveSlotName, xrayStorageKey,
   })));
 }
 
@@ -63,6 +63,25 @@ async function waitForCondition(page, predicate, timeoutMs, description) {
   const state = await getState(page);
   throw new Error('Timed out waiting for ' + description + '. Last state: ' +
     JSON.stringify(state));
+}
+
+// Reads whether the X-ray <aside> is currently hidden.
+async function isXrayPanelHidden(page) {
+  return page.evaluate(() => document.getElementById('xray').hidden);
+}
+
+// Parses the two LOOP counters and the pause state out of #xrayLoop's
+// text, the same numbers a person reading the panel would see. Only
+// meaningful while the panel is open — that text goes stale once hidden.
+async function getXrayLoopCounters(page) {
+  return page.evaluate(() => {
+    const text = document.getElementById('xrayLoop').textContent;
+    return {
+      framesDrawn: Number(text.match(/frames drawn: (\d+)/)[1]),
+      updatesRun: Number(text.match(/updates run:\s+(\d+)/)[1]),
+      paused: text.includes('clock: PAUSED'),
+    };
+  });
 }
 
 // ------------------------------------------------------------------
@@ -394,6 +413,223 @@ async function runPlaythrough(page) {
     'expected player back at (3,14) after N (new game), got (' + state.player.tileX + ',' +
     state.player.tileY + ')');
   console.log('PASS — N deleted the save and reset the game to its starting state');
+
+  await runXrayChecks(page, world);
+}
+
+// ------------------------------------------------------------------
+// X-RAY: the v1.1/v1.2 panel, its open/closed memory, and pause/step.
+// Section 11 in game.html; keys X, P and "." on their own listener,
+// separate from the game's own INPUT section.
+// ------------------------------------------------------------------
+
+// (v1.1) X shows the panel; X again hides it. Starts hidden on this fresh
+// (post-N) load because nothing has set the localStorage key yet.
+async function checkXrayToggle(page) {
+  assertTrue(await isXrayPanelHidden(page) === true,
+    'expected the X-ray panel hidden before pressing X for the first time');
+
+  await tapKey(page, 'x');
+  await page.waitForTimeout(50);
+  assertTrue(await isXrayPanelHidden(page) === false, 'expected X to show the X-ray panel');
+  console.log('PASS — X showed the X-ray panel');
+
+  await tapKey(page, 'x');
+  await page.waitForTimeout(50);
+  assertTrue(await isXrayPanelHidden(page) === true, 'expected X to hide the X-ray panel again');
+  console.log('PASS — X hid the X-ray panel again');
+}
+
+// (v1.1) The open/closed choice survives F5, via localStorage key
+// "open-world-how-to-xray-open" — open it, reload, still open; close it,
+// reload, still closed.
+async function checkXrayOpenStateSurvivesReload(page, world) {
+  await tapKey(page, 'x');
+  await page.waitForTimeout(50);
+  const storedWhileOpen = await page.evaluate(
+    (key) => localStorage.getItem(key), world.xrayStorageKey);
+  assertTrue(storedWhileOpen === 'true',
+    'expected localStorage["' + world.xrayStorageKey + '"] === "true" once open, got ' +
+    JSON.stringify(storedWhileOpen));
+
+  await page.reload();
+  await waitForCanvasReady(page);
+  assertTrue(await isXrayPanelHidden(page) === false,
+    'expected the X-ray panel to still be open after a reload');
+  console.log('PASS — the X-ray panel stayed open across a reload (localStorage["' +
+    world.xrayStorageKey + '"])');
+
+  await tapKey(page, 'x');
+  await page.waitForTimeout(50);
+  await page.reload();
+  await waitForCanvasReady(page);
+  assertTrue(await isXrayPanelHidden(page) === true,
+    'expected the X-ray panel to still be closed after a reload');
+  console.log('PASS — the X-ray panel stayed closed across a reload');
+}
+
+// (v1.2) With the panel open, P freezes UPDATE (updates run holds still,
+// the player does not move even with a direction key held) while RENDER
+// keeps going (frames drawn keeps rising).
+async function checkPauseFreezesUpdateNotRender(page) {
+  await tapKey(page, 'x'); // open the panel
+  await page.waitForTimeout(50);
+  await tapKey(page, 'p'); // pause
+  await page.waitForTimeout(50);
+  const before = await getXrayLoopCounters(page);
+  assertTrue(before.paused === true, 'expected clock: PAUSED after pressing P');
+  const stateBefore = await getState(page);
+
+  await page.keyboard.down('ArrowRight');
+  await page.waitForTimeout(500);
+  await page.keyboard.up('ArrowRight');
+  await page.waitForTimeout(50);
+
+  const after = await getXrayLoopCounters(page);
+  const stateAfter = await getState(page);
+
+  assertTrue(after.updatesRun === before.updatesRun,
+    'expected "updates run" to stay at ' + before.updatesRun + ' while paused, got ' +
+    after.updatesRun);
+  assertTrue(after.framesDrawn > before.framesDrawn,
+    'expected "frames drawn" to keep rising while paused (RENDER keeps running), stayed at ' +
+    before.framesDrawn);
+  assertTrue(stateAfter.player.tileX === stateBefore.player.tileX &&
+    stateAfter.player.tileY === stateBefore.player.tileY,
+    'expected the player not to move while paused with ArrowRight held, moved from (' +
+    stateBefore.player.tileX + ',' + stateBefore.player.tileY + ') to (' +
+    stateAfter.player.tileX + ',' + stateAfter.player.tileY + ')');
+  console.log('PASS — P paused the world: "updates run" held at ' + before.updatesRun +
+    ' and the player did not move, while "frames drawn" kept rising to ' + after.framesDrawn);
+}
+
+// (v1.2) P again resumes with no burst of catch-up ticks: the jump in
+// "updates run" right after resuming is a couple of ticks, not the dozens
+// that would have piled up while paused; after that it climbs near the
+// normal 60/sec rate.
+async function checkResumeHasNoCatchUpBurst(page) {
+  const before = await getXrayLoopCounters(page);
+  assertTrue(before.paused === true, 'expected the game to still be paused going into resume');
+
+  await tapKey(page, 'p'); // resume
+  await page.waitForTimeout(50); // a few frames' worth
+  const justAfter = await getXrayLoopCounters(page);
+  const immediateJump = justAfter.updatesRun - before.updatesRun;
+  assertTrue(immediateJump >= 0 && immediateJump <= 10,
+    'expected a small jump in "updates run" right after resuming (a couple of ticks), got ' +
+    immediateJump);
+
+  await page.waitForTimeout(450); // ~500ms total since resume
+  const halfSecondLater = await getXrayLoopCounters(page);
+  const riseOverHalfSecond = halfSecondLater.updatesRun - before.updatesRun;
+  assertTrue(riseOverHalfSecond > 15 && riseOverHalfSecond < 60,
+    'expected "updates run" to climb near 60/sec after resuming (~30 over 500ms), rose by ' +
+    riseOverHalfSecond);
+  console.log('PASS — P resumed with no catch-up burst (jumped by only ' + immediateJump +
+    ' right after resume, then climbed by ' + riseOverHalfSecond + ' over the next ~500ms)');
+}
+
+// (v1.2) While paused, "." runs exactly one update: "updates run" rises
+// by exactly 1, then holds there.
+async function checkSingleStepAdvancesExactlyOne(page) {
+  await tapKey(page, 'p'); // pause again
+  await page.waitForTimeout(50);
+  const before = await getXrayLoopCounters(page);
+  assertTrue(before.paused === true, 'expected clock: PAUSED before single-stepping');
+
+  await tapKey(page, '.');
+  await page.waitForTimeout(50);
+  const afterStep = await getXrayLoopCounters(page);
+  assertTrue(afterStep.updatesRun === before.updatesRun + 1,
+    'expected "." to advance "updates run" by exactly 1 from ' + before.updatesRun + ', got ' +
+    afterStep.updatesRun);
+
+  await page.waitForTimeout(150); // confirm it does not keep ticking
+  const settled = await getXrayLoopCounters(page);
+  assertTrue(settled.updatesRun === afterStep.updatesRun,
+    'expected "updates run" to hold at ' + afterStep.updatesRun +
+    ' after the single step, moved to ' + settled.updatesRun);
+  console.log('PASS — "." advanced "updates run" by exactly 1 (from ' + before.updatesRun +
+    ' to ' + afterStep.updatesRun + ') and the world stayed paused afterward');
+}
+
+// (v1.2) X pressed while paused hides the panel AND resumes the game —
+// it must never leave the game frozen with no panel open to explain why.
+async function checkClosingPanelWhilePausedResumesGame(page) {
+  assertTrue(await isXrayPanelHidden(page) === false, 'expected the panel open going into this check');
+  await tapKey(page, 'x');
+  await page.waitForTimeout(50);
+  assertTrue(await isXrayPanelHidden(page) === true,
+    'expected X to hide the X-ray panel while paused');
+  console.log('PASS — X pressed while paused hid the X-ray panel');
+}
+
+// (v1.2) P and "." do nothing while the panel is hidden — proven two ways
+// at once: pressing them has no visible effect, and holding a direction
+// key still moves the player, which also confirms X (above) really did
+// resume the game rather than leaving it frozen.
+async function checkPauseKeysInertWithPanelHidden(page) {
+  assertTrue(await isXrayPanelHidden(page) === true, 'expected the panel hidden for this check');
+  const before = await getState(page);
+
+  await tapKey(page, 'p');
+  await tapKey(page, '.');
+  await page.keyboard.down('ArrowRight');
+  await page.waitForTimeout(500);
+  await page.keyboard.up('ArrowRight');
+  await page.waitForTimeout(50);
+
+  const after = await getState(page);
+  const tilesMoved = after.player.tileX - before.player.tileX;
+  assertTrue(tilesMoved > 1,
+    'expected the player to move normally with the panel hidden (P and "." should do ' +
+    'nothing, and the earlier X should have resumed the game), moved ' + tilesMoved + ' tiles');
+  console.log('PASS — P and "." had no effect with the panel hidden, and the player moved ' +
+    tilesMoved + ' tiles, confirming X had already resumed the game');
+}
+
+// (v1.2) Pause does not survive a reload (only panel-open/closed does):
+// pause, reload, and confirm the game is running again.
+async function checkPauseDoesNotSurviveReload(page) {
+  await tapKey(page, 'x'); // reopen the panel
+  await page.waitForTimeout(50);
+  await tapKey(page, 'p'); // pause
+  await page.waitForTimeout(50);
+  assertTrue((await getXrayLoopCounters(page)).paused === true,
+    'expected clock: PAUSED before reloading');
+
+  await page.reload();
+  await waitForCanvasReady(page);
+  await page.waitForTimeout(50);
+
+  assertTrue(await isXrayPanelHidden(page) === false,
+    'expected the (separately-persisted) panel-open choice to still be open after reload');
+  const loopAfterReload = await getXrayLoopCounters(page);
+  assertTrue(loopAfterReload.paused === false,
+    'expected clock: running (not PAUSED) after reload, but the panel still showed paused');
+
+  const beforeMove = await getState(page);
+  await page.keyboard.down('ArrowRight');
+  await page.waitForTimeout(500);
+  await page.keyboard.up('ArrowRight');
+  await page.waitForTimeout(50);
+  const afterMove = await getState(page);
+  const tilesMoved = afterMove.player.tileX - beforeMove.player.tileX;
+  assertTrue(tilesMoved > 1,
+    'expected the game running (not paused) after reload, player moved ' + tilesMoved + ' tiles');
+  console.log('PASS — pause did not survive a reload; the game was running again after F5 ' +
+    '(player moved ' + tilesMoved + ' tiles)');
+}
+
+async function runXrayChecks(page, world) {
+  await checkXrayToggle(page);
+  await checkXrayOpenStateSurvivesReload(page, world);
+  await checkPauseFreezesUpdateNotRender(page);
+  await checkResumeHasNoCatchUpBurst(page);
+  await checkSingleStepAdvancesExactlyOne(page);
+  await checkClosingPanelWhilePausedResumesGame(page);
+  await checkPauseKeysInertWithPanelHidden(page);
+  await checkPauseDoesNotSurviveReload(page);
 }
 
 async function waitForCanvasReady(page) {
