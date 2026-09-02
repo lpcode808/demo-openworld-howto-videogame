@@ -37,3 +37,20 @@ elsewhere. Desktop agents read the newest entry after syncing.
   `TEARDOWN.md` tells students to search by function name if numbers drift.
 - Routing: → maintainer reads `game.html` as a 15-year-old would (PRD §9 "stop at P1"), and tests
   once in Edge on a managed device.
+
+### 2026-09-02-0930 — v1.1: X-RAY panel, maintainer tools, docs re-cited — Claude Code cloud
+- Orchestrated run: Fable as reviewer/judge, three Sonnet agents did the work (verify, build, docs).
+- Verified P1 first: `tools/playthrough.mjs` drives headless Chromium over `file://` through all
+  three quests, both maps, save, F5, N. 22.6 s, zero console errors, no game bugs found.
+- Added `11 · X-RAY` to `game.html` (now 1,499 lines): press X for a side panel showing intents,
+  a per-update log of which `state` fields changed (a diff of the same snapshot the render-purity
+  check takes), a COLLIDE probe of the tile ahead, the whole `state`, and loop counters. Reads
+  only; its one hook is three lines in LOOP. Removable: delete the section, the `<aside>`, and
+  those three lines — verified the trimmed file still runs. PRD §4a/§5a/§8 record the rules.
+- `tools/check.mjs` (PRD §8 mechanical checks) and `tools/check-doc-lines.mjs` (doc line
+  citations vs. the file) both pass. TEARDOWN/CHANGE-ME/README re-cited against the new line
+  numbers, with a short X-ray block in TEARDOWN before Read 1.
+- Not done: still only tested in Chromium, not Edge. P2 untouched. Pause/single-step for the
+  X-ray is listed under P2, not built.
+- Routing: → maintainer opens `game.html`, presses X, and walks to Mira; then a once-over of
+  section 11 as a 15-year-old would read it. Test once in Edge on a managed device.
