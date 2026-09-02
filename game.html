@@ -495,8 +495,27 @@ function clearPressedIntents() {
 // One fixed slice of game time. Read this top to bottom and you have the
 // order of everything that can happen in the world.
 function update(stepSeconds) {
-  updatePlayerMovement(stepSeconds);
+  updateNotice(stepSeconds);
+  if (state.dialogue === null) {
+    updatePlayerMovement(stepSeconds);
+    updateTalking();
+  } else {
+    // While a speech box is open the same keys mean something else.
+    updateDialogue();
+  }
   clearPressedIntents();
+}
+
+// Put a short message on screen. RENDER shows it while secondsLeft > 0.
+function showNotice(text) {
+  state.notice.text = text;
+  state.notice.secondsLeft = noticeDurationInSeconds;
+}
+
+function updateNotice(stepSeconds) {
+  if (state.notice.secondsLeft > 0) {
+    state.notice.secondsLeft -= stepSeconds;
+  }
 }
 
 // Walking is grid-based: the player is always on a whole tile and hops to
@@ -525,6 +544,92 @@ function updatePlayerMovement(stepSeconds) {
   player.tileX = targetX;
   player.tileY = targetY;
   player.stepCooldown = 1 / playerStepsPerSecond;
+  pickUpItemUnderPlayer();
+}
+
+// Standing on an item that is still on the ground puts it in the bag.
+function pickUpItemUnderPlayer() {
+  for (const item of items) {
+    if (item.map !== state.currentMap) continue;
+    if (state.pickedUpItems[item.id]) continue;
+    if (item.tileX !== state.player.tileX || item.tileY !== state.player.tileY) continue;
+    state.pickedUpItems[item.id] = true;
+    state.inventory.push(item.id);
+    showNotice('Picked up ' + item.name);
+  }
+}
+
+function hasItem(itemId) {
+  return state.inventory.includes(itemId);
+}
+
+// Take one item out of the bag. Loops instead of a one-liner so the
+// "find it, then remove it" idea is visible.
+function removeItemFromInventory(itemId) {
+  for (let index = 0; index < state.inventory.length; index++) {
+    if (state.inventory[index] === itemId) {
+      state.inventory.splice(index, 1);
+      return;
+    }
+  }
+}
+
+// Pressing Space while facing an NPC opens their speech box. Which node the
+// conversation starts on depends on what you have done so far.
+function updateTalking() {
+  if (!intents.interactPressed) return;
+  const offset = directionOffsets[state.player.facing];
+  const facingX = state.player.tileX + offset.dx;
+  const facingY = state.player.tileY + offset.dy;
+  const npc = findNpcAt(state.currentMap, facingX, facingY);
+  if (npc === null) return;
+
+  let startingNode = 'hello';
+  if (state.flags[npc.setsFlag]) {
+    startingNode = 'afterQuest';
+  } else if (hasItem(npc.wantsItem)) {
+    startingNode = 'offer';
+  }
+  state.dialogue = { npcId: npc.id, nodeKey: startingNode, choiceIndex: 0 };
+}
+
+// Up/Down move the highlight, Space picks. A choice can hand over an item
+// and then either jump to another node or (next: null) end the talk.
+function updateDialogue() {
+  const dialogue = state.dialogue;
+  const npc = findNpcById(dialogue.npcId);
+  const node = npc.dialogue[dialogue.nodeKey];
+
+  if (intents.menuUpPressed && dialogue.choiceIndex > 0) {
+    dialogue.choiceIndex -= 1;
+  }
+  if (intents.menuDownPressed && dialogue.choiceIndex < node.choices.length - 1) {
+    dialogue.choiceIndex += 1;
+  }
+  if (!intents.interactPressed) return;
+
+  if (node.choices.length === 0) {
+    state.dialogue = null;
+    return;
+  }
+  const choice = node.choices[dialogue.choiceIndex];
+  if (choice.givesItem) {
+    giveItemToNpc(choice.givesItem, npc);
+  }
+  if (choice.next === null) {
+    state.dialogue = null;
+  } else {
+    dialogue.nodeKey = choice.next;
+    dialogue.choiceIndex = 0;
+  }
+}
+
+// The moment a quest completes: the item leaves the bag and a flag flips.
+// COLLIDE and RENDER read the flags, so the world changes on its own.
+function giveItemToNpc(itemId, npc) {
+  removeItemFromInventory(itemId);
+  state.flags[npc.setsFlag] = true;
+  showNotice('Quest complete: ' + findItemById(itemId).name + ' delivered');
 }
 
 
@@ -544,8 +649,23 @@ function tileAt(mapName, tileX, tileY) {
   return rows[tileY][tileX];
 }
 
+// Is somebody standing on this tile? Returns the NPC, or null.
+function findNpcAt(mapName, tileX, tileY) {
+  for (const npc of npcs) {
+    if (npc.map === mapName && npc.tileX === tileX && npc.tileY === tileY) {
+      return npc;
+    }
+  }
+  return null;
+}
+
 // The whole answer to "why can't I walk through a tree?" is here.
 function canWalkTo(mapName, tileX, tileY) {
+  // People are solid too.
+  if (findNpcAt(mapName, tileX, tileY) !== null) {
+    return false;
+  }
+
   const tileCharacter = tileAt(mapName, tileX, tileY);
 
   // The bridge is the one tile whose walkability depends on state.
