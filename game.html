@@ -345,6 +345,21 @@ const npcs = [
   },
 ];
 
+// Two lookups into the tables above, used by UPDATE and RENDER alike.
+function findItemById(itemId) {
+  for (const item of items) {
+    if (item.id === itemId) return item;
+  }
+  return null;
+}
+
+function findNpcById(npcId) {
+  for (const npc of npcs) {
+    if (npc.id === npcId) return npc;
+  }
+  return null;
+}
+
 
 /* ============================================================
    3 · STATE — the one object that remembers everything
@@ -414,6 +429,10 @@ const state = {
    you change something in this section.
    ============================================================ */
 
+// One fixed slice of game time. Filled in as the game grows.
+function update(stepSeconds) {
+}
+
 
 /* ============================================================
    6 · COLLIDE — what can you walk on, and where does it lead
@@ -430,6 +449,241 @@ const state = {
    every frame (see the end of this section).
    ============================================================ */
 
+// The canvas is the rectangle of pixels on the page. The "context" is the
+// set of drawing commands (fillRect, fillText, arc...) for that canvas.
+const canvas = document.getElementById('gameCanvas');
+const context = canvas.getContext('2d');
+
+// The camera is the top-left tile of the map that appears in the viewport.
+// It follows the player and stops at the map edges so you never see past
+// them. This function only calculates; it does not store anything.
+function computeCamera() {
+  const map = maps[state.currentMap];
+  const mapWidthInTiles = map.rows[0].length;
+  const mapHeightInTiles = map.rows.length;
+
+  let cameraX = state.player.tileX - Math.floor(viewportWidthInTiles / 2);
+  let cameraY = state.player.tileY - Math.floor(viewportHeightInTiles / 2);
+
+  // Math.max(0, ...) handles a map smaller than the viewport, like the house.
+  const furthestCameraX = Math.max(0, mapWidthInTiles - viewportWidthInTiles);
+  const furthestCameraY = Math.max(0, mapHeightInTiles - viewportHeightInTiles);
+  if (cameraX < 0) cameraX = 0;
+  if (cameraY < 0) cameraY = 0;
+  if (cameraX > furthestCameraX) cameraX = furthestCameraX;
+  if (cameraY > furthestCameraY) cameraY = furthestCameraY;
+
+  return { tileX: cameraX, tileY: cameraY };
+}
+
+// Draw one whole frame, back to front: ground, things on the ground,
+// people, the player, then the flat interface panels on top.
+function render() {
+  const camera = computeCamera();
+  drawTiles(camera);
+  drawItems(camera);
+  drawNpcs(camera);
+  drawPlayer(camera);
+  drawHud();
+  if (state.dialogue !== null) {
+    drawDialogueBox();
+  }
+  drawNotice();
+}
+
+// The bridge is the one tile whose look depends on state: water until the
+// carpenter fixes it, planks afterwards.
+function tileColorFor(tileCharacter) {
+  if (tileCharacter === 'B' && state.flags.bridgeBuilt) {
+    return colors.bridge;
+  }
+  return tileTypes[tileCharacter].color;
+}
+
+// Only the tiles inside the viewport are drawn. Tiles past the edge of a
+// small map are painted black.
+function drawTiles(camera) {
+  const map = maps[state.currentMap];
+  for (let screenRow = 0; screenRow < viewportHeightInTiles; screenRow++) {
+    for (let screenCol = 0; screenCol < viewportWidthInTiles; screenCol++) {
+      const mapX = camera.tileX + screenCol;
+      const mapY = camera.tileY + screenRow;
+      const pixelX = screenCol * tileSizeInPixels;
+      const pixelY = screenRow * tileSizeInPixels;
+
+      const isOutsideMap = mapY < 0 || mapY >= map.rows.length ||
+        mapX < 0 || mapX >= map.rows[0].length;
+      if (isOutsideMap) {
+        context.fillStyle = colors.outsideMap;
+        context.fillRect(pixelX, pixelY, tileSizeInPixels, tileSizeInPixels);
+        continue;
+      }
+
+      const tileCharacter = map.rows[mapY][mapX];
+      context.fillStyle = tileColorFor(tileCharacter);
+      context.fillRect(pixelX, pixelY, tileSizeInPixels, tileSizeInPixels);
+      drawTileDetail(tileCharacter, pixelX, pixelY);
+    }
+  }
+}
+
+// A little extra shape on some tiles so a tree isn't just a green square.
+// Pure decoration: delete this function's body and the game still works.
+function drawTileDetail(tileCharacter, pixelX, pixelY) {
+  const half = tileSizeInPixels / 2;
+  if (tileCharacter === 'T') {
+    context.fillStyle = colors.treeTop;
+    context.beginPath();
+    context.arc(pixelX + half, pixelY + half, half * 0.6, 0, Math.PI * 2);
+    context.fill();
+  }
+  if (tileCharacter === 'D' || tileCharacter === 'X') {
+    context.fillStyle = colors.doorInner;
+    context.fillRect(pixelX + 8, pixelY + 6, tileSizeInPixels - 16, tileSizeInPixels - 6);
+  }
+}
+
+// Items are small squares. An item is skipped if it is on another map or
+// has already been picked up.
+function drawItems(camera) {
+  for (const item of items) {
+    if (item.map !== state.currentMap) continue;
+    if (state.pickedUpItems[item.id]) continue;
+    const pixelX = (item.tileX - camera.tileX) * tileSizeInPixels;
+    const pixelY = (item.tileY - camera.tileY) * tileSizeInPixels;
+    context.fillStyle = item.color;
+    context.fillRect(pixelX + 9, pixelY + 9, tileSizeInPixels - 18, tileSizeInPixels - 18);
+  }
+}
+
+// NPCs are colored squares with their name floating above.
+function drawNpcs(camera) {
+  for (const npc of npcs) {
+    if (npc.map !== state.currentMap) continue;
+    const pixelX = (npc.tileX - camera.tileX) * tileSizeInPixels;
+    const pixelY = (npc.tileY - camera.tileY) * tileSizeInPixels;
+    context.fillStyle = npc.color;
+    context.fillRect(pixelX + 4, pixelY + 4, tileSizeInPixels - 8, tileSizeInPixels - 8);
+    context.fillStyle = colors.hudText;
+    context.font = fonts.small;
+    context.textAlign = 'center';
+    context.fillText(npc.name, pixelX + tileSizeInPixels / 2, pixelY - 3);
+  }
+}
+
+// The player is a square with an "eye" on the side they are facing, so you
+// can see which tile Space will talk to.
+function drawPlayer(camera) {
+  const player = state.player;
+  const pixelX = (player.tileX - camera.tileX) * tileSizeInPixels;
+  const pixelY = (player.tileY - camera.tileY) * tileSizeInPixels;
+  context.fillStyle = colors.player;
+  context.fillRect(pixelX + 4, pixelY + 4, tileSizeInPixels - 8, tileSizeInPixels - 8);
+
+  const offset = directionOffsets[player.facing];
+  const eyeX = pixelX + tileSizeInPixels / 2 + offset.dx * 9 - 3;
+  const eyeY = pixelY + tileSizeInPixels / 2 + offset.dy * 9 - 3;
+  context.fillStyle = colors.playerEye;
+  context.fillRect(eyeX, eyeY, 6, 6);
+}
+
+// The panel under the world: where you are, what you carry, and the quests.
+function drawHud() {
+  const top = viewportHeightInTiles * tileSizeInPixels;
+  context.fillStyle = colors.hudBackground;
+  context.fillRect(0, top, canvas.width, hudHeightInPixels);
+  context.textAlign = 'left';
+  context.font = fonts.hud;
+
+  context.fillStyle = colors.hudText;
+  context.fillText('Place: ' + maps[state.currentMap].title, 12, top + 24);
+
+  let bagText = '(empty)';
+  if (state.inventory.length > 0) {
+    const names = [];
+    for (const itemId of state.inventory) {
+      names.push(findItemById(itemId).name);
+    }
+    bagText = names.join(', ');
+  }
+  context.fillText('Bag: ' + bagText, 12, top + 48);
+
+  context.fillStyle = colors.hudDim;
+  context.font = fonts.small;
+  context.fillText('Arrows/WASD move · Space talk · K save · L load · N new game', 12, top + 82);
+
+  context.font = fonts.hud;
+  for (let index = 0; index < quests.length; index++) {
+    const quest = quests[index];
+    let mark = '[ ] ';
+    context.fillStyle = colors.hudDim;
+    if (state.flags[quest.flag]) {
+      mark = '[x] ';
+      context.fillStyle = colors.questDone;
+    }
+    context.fillText(mark + quest.title, 380, top + 24 + index * 24);
+  }
+}
+
+// The speech box sits over the bottom of the world while someone talks.
+function drawDialogueBox() {
+  const npc = findNpcById(state.dialogue.npcId);
+  const node = npc.dialogue[state.dialogue.nodeKey];
+  const boxHeight = 60 + (node.lines.length + node.choices.length) * 22;
+  const boxTop = viewportHeightInTiles * tileSizeInPixels - boxHeight - 8;
+  context.fillStyle = colors.dialogueBox;
+  context.fillRect(8, boxTop, canvas.width - 16, boxHeight);
+  context.textAlign = 'left';
+
+  context.font = fonts.dialogue;
+  context.fillStyle = colors.dialogueName;
+  context.fillText(npc.name, 24, boxTop + 26);
+
+  context.fillStyle = colors.dialogueText;
+  for (let index = 0; index < node.lines.length; index++) {
+    context.fillText(node.lines[index], 24, boxTop + 52 + index * 22);
+  }
+
+  const choicesTop = boxTop + 52 + node.lines.length * 22;
+  if (node.choices.length === 0) {
+    context.fillStyle = colors.dialogueChoice;
+    context.fillText('(Space to continue)', 24, choicesTop);
+    return;
+  }
+  for (let index = 0; index < node.choices.length; index++) {
+    let marker = '   ';
+    context.fillStyle = colors.dialogueChoice;
+    if (index === state.dialogue.choiceIndex) {
+      marker = ' > ';
+      context.fillStyle = colors.dialogueChoiceSelected;
+    }
+    context.fillText(marker + node.choices[index].label, 24, choicesTop + index * 22);
+  }
+}
+
+// The yellow banner for "Saved!" and pickups. Nothing is drawn once the
+// timer that UPDATE counts down reaches zero.
+function drawNotice() {
+  if (state.notice.secondsLeft <= 0) return;
+  context.font = fonts.notice;
+  context.textAlign = 'center';
+  context.fillStyle = colors.dialogueBox;
+  context.fillRect(canvas.width / 2 - 180, 10, 360, 34);
+  context.fillStyle = colors.notice;
+  context.fillText(state.notice.text, canvas.width / 2, 34);
+}
+
+// THE PROMISE, ENFORCED. LOOP takes a text snapshot of `state` before
+// render() and hands it here afterwards. If drawing changed anything, the
+// two strings differ and the game halts with an error naming the crime.
+function assertRenderChangedNothing(stateBeforeRender) {
+  if (!checkRenderPurity) return;
+  const stateAfterRender = JSON.stringify(state);
+  if (stateAfterRender !== stateBeforeRender) {
+    throw new Error('RENDER changed state! Drawing must only read.');
+  }
+}
+
 
 /* ============================================================
    8 · LOOP — the heartbeat
@@ -437,6 +691,25 @@ const state = {
    second. Each call catches the simulation up in fixed steps, then
    draws once. This is the most important dozen lines in the file.
    ============================================================ */
+
+// The loop's stopwatch. Not game state: never saved, never drawn.
+let lastFrameTimeInMs = 0;
+let unsimulatedSeconds = 0;
+
+function frame(nowInMs) {
+  let elapsedSeconds = (nowInMs - lastFrameTimeInMs) / 1000;
+  if (elapsedSeconds > maxFrameGapInSeconds) elapsedSeconds = maxFrameGapInSeconds;
+  lastFrameTimeInMs = nowInMs;
+  unsimulatedSeconds += elapsedSeconds;
+  while (unsimulatedSeconds >= fixedStepInSeconds) {
+    update(fixedStepInSeconds);
+    unsimulatedSeconds -= fixedStepInSeconds;
+  }
+  const stateBeforeRender = JSON.stringify(state);
+  render();
+  assertRenderChangedNothing(stateBeforeRender);
+  requestAnimationFrame(frame);
+}
 
 
 /* ============================================================
@@ -453,6 +726,11 @@ const state = {
    the canvas, listens for keys, tries to load a save, and asks
    the browser for the first frame. Everything after that is LOOP.
    ============================================================ */
+
+canvas.width = viewportWidthInTiles * tileSizeInPixels;
+canvas.height = viewportHeightInTiles * tileSizeInPixels + hudHeightInPixels;
+
+requestAnimationFrame(frame);
 
 </script>
 </body>
