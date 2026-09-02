@@ -420,6 +420,69 @@ const state = {
    to grant it.
    ============================================================ */
 
+// The mailbox between the keyboard and UPDATE. Two kinds of field:
+//  - "move*" are true for as long as the key is held down.
+//  - "*Pressed" are true from the moment a key goes down until UPDATE has
+//    read them once. That is how one tap of Space means one action.
+const intents = {
+  moveUp: false,
+  moveDown: false,
+  moveLeft: false,
+  moveRight: false,
+  interactPressed: false,
+  menuUpPressed: false,
+  menuDownPressed: false,
+  savePressed: false,
+  loadPressed: false,
+  newGamePressed: false,
+};
+
+// Arrow keys and WASD do the same thing. `isDown` is true on keydown and
+// false on keyup, so this one function handles both events.
+function setMovementIntent(key, isDown) {
+  if (key === 'arrowup' || key === 'w') intents.moveUp = isDown;
+  if (key === 'arrowdown' || key === 's') intents.moveDown = isDown;
+  if (key === 'arrowleft' || key === 'a') intents.moveLeft = isDown;
+  if (key === 'arrowright' || key === 'd') intents.moveRight = isDown;
+}
+
+function onKeyDown(event) {
+  // Lower-case so Shift+W still counts as W.
+  const key = event.key.toLowerCase();
+  const isGameKey = key.startsWith('arrow') || key === ' ' || 'wasdkln'.includes(key);
+  if (isGameKey) {
+    // Stop arrows and Space from scrolling the page underneath the game.
+    event.preventDefault();
+  }
+  // Holding a key makes the browser fire keydown over and over. Movement
+  // is handled by keyup anyway, and a held Space must not repeat, so we
+  // record the movement and ignore everything else about a repeat.
+  setMovementIntent(key, true);
+  if (event.repeat) return;
+
+  if (key === ' ') intents.interactPressed = true;
+  if (key === 'arrowup' || key === 'w') intents.menuUpPressed = true;
+  if (key === 'arrowdown' || key === 's') intents.menuDownPressed = true;
+  if (key === 'k') intents.savePressed = true;
+  if (key === 'l') intents.loadPressed = true;
+  if (key === 'n') intents.newGamePressed = true;
+}
+
+function onKeyUp(event) {
+  const key = event.key.toLowerCase();
+  setMovementIntent(key, false);
+}
+
+// UPDATE calls this at the end of every step so a press counts once.
+function clearPressedIntents() {
+  intents.interactPressed = false;
+  intents.menuUpPressed = false;
+  intents.menuDownPressed = false;
+  intents.savePressed = false;
+  intents.loadPressed = false;
+  intents.newGamePressed = false;
+}
+
 
 /* ============================================================
    5 · UPDATE — the rules of the world
@@ -429,8 +492,39 @@ const state = {
    you change something in this section.
    ============================================================ */
 
-// One fixed slice of game time. Filled in as the game grows.
+// One fixed slice of game time. Read this top to bottom and you have the
+// order of everything that can happen in the world.
 function update(stepSeconds) {
+  updatePlayerMovement(stepSeconds);
+  clearPressedIntents();
+}
+
+// Walking is grid-based: the player is always on a whole tile and hops to
+// the next one. The cooldown is what makes holding a key a steady walk
+// instead of a blur.
+function updatePlayerMovement(stepSeconds) {
+  const player = state.player;
+  player.stepCooldown -= stepSeconds;
+  if (player.stepCooldown > 0) return;
+  player.stepCooldown = 0;
+
+  let wantedFacing = null;
+  if (intents.moveUp) wantedFacing = 'up';
+  else if (intents.moveDown) wantedFacing = 'down';
+  else if (intents.moveLeft) wantedFacing = 'left';
+  else if (intents.moveRight) wantedFacing = 'right';
+  if (wantedFacing === null) return;
+
+  // Turn first, so pressing a key toward a wall still faces you at it.
+  player.facing = wantedFacing;
+  const offset = directionOffsets[wantedFacing];
+  const targetX = player.tileX + offset.dx;
+  const targetY = player.tileY + offset.dy;
+  if (!canWalkTo(state.currentMap, targetX, targetY)) return;
+
+  player.tileX = targetX;
+  player.tileY = targetY;
+  player.stepCooldown = 1 / playerStepsPerSecond;
 }
 
 
@@ -440,6 +534,26 @@ function update(stepSeconds) {
    between areas. Kept apart from UPDATE so you can read "why can't
    I walk through a tree?" on its own.
    ============================================================ */
+
+// Which character is at this spot on this map? Off the map counts as a
+// wall, so nobody can ever walk out of the world.
+function tileAt(mapName, tileX, tileY) {
+  const rows = maps[mapName].rows;
+  if (tileY < 0 || tileY >= rows.length) return '#';
+  if (tileX < 0 || tileX >= rows[tileY].length) return '#';
+  return rows[tileY][tileX];
+}
+
+// The whole answer to "why can't I walk through a tree?" is here.
+function canWalkTo(mapName, tileX, tileY) {
+  const tileCharacter = tileAt(mapName, tileX, tileY);
+
+  // The bridge is the one tile whose walkability depends on state.
+  if (tileCharacter === 'B') {
+    return state.flags.bridgeBuilt;
+  }
+  return tileTypes[tileCharacter].walkable;
+}
 
 
 /* ============================================================
@@ -729,6 +843,9 @@ function frame(nowInMs) {
 
 canvas.width = viewportWidthInTiles * tileSizeInPixels;
 canvas.height = viewportHeightInTiles * tileSizeInPixels + hudHeightInPixels;
+
+window.addEventListener('keydown', onKeyDown);
+window.addEventListener('keyup', onKeyUp);
 
 requestAnimationFrame(frame);
 
