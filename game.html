@@ -545,6 +545,19 @@ function updatePlayerMovement(stepSeconds) {
   player.tileY = targetY;
   player.stepCooldown = 1 / playerStepsPerSecond;
   pickUpItemUnderPlayer();
+  goThroughDoorUnderPlayer();
+}
+
+// Changing area is nothing more than changing three fields of state.
+// RENDER draws whichever map `currentMap` names; it never knows we moved.
+function goThroughDoorUnderPlayer() {
+  const door = findDoorAt(state.currentMap, state.player.tileX, state.player.tileY);
+  if (door === null) return;
+  state.currentMap = door.toMap;
+  state.player.tileX = door.toX;
+  state.player.tileY = door.toY;
+  state.player.facing = door.facing;
+  showNotice('Entered ' + maps[door.toMap].title);
 }
 
 // Standing on an item that is still on the ground puts it in the bag.
@@ -647,6 +660,16 @@ function tileAt(mapName, tileX, tileY) {
   if (tileY < 0 || tileY >= rows.length) return '#';
   if (tileX < 0 || tileX >= rows[tileY].length) return '#';
   return rows[tileY][tileX];
+}
+
+// Is this tile the "from" side of a door? Returns the door, or null.
+function findDoorAt(mapName, tileX, tileY) {
+  for (const door of doors) {
+    if (door.fromMap === mapName && door.fromX === tileX && door.fromY === tileY) {
+      return door;
+    }
+  }
+  return null;
 }
 
 // Is somebody standing on this tile? Returns the NPC, or null.
