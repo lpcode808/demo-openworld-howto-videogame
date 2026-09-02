@@ -2,7 +2,8 @@
 
 **An open-world adventure game built to be read, not played.**
 
-Status: v1.2 · P1 built 2026-09-01 · X-RAY and pause/step added 2026-09-02 (§4a, §5a, §8)
+Status: v1.3 · P1 built 2026-09-01 · X-RAY and pause/step added 2026-09-02 (§4a, §5a, §8)
+· X-ray explanation layer added 2026-09-02 (§4b, §8)
 
 ---
 
@@ -146,6 +147,43 @@ Rules, so it stays a window onto the game and never becomes part of it:
 
 ---
 
+### 4b. Amendment (v1.3) — the X-ray has to explain itself
+
+The v1.1/v1.2 panel was accurate and terse: five boxes of live values. Watching a maintainer
+read it made the gap obvious — a student who does not already know the arrow cannot learn it
+from a wall of field names. v1.3 adds an explanation layer on top of the same readings. No new
+readings, no new memory, no new hook into the game.
+
+- **A live diagram, first in the panel.** Seven rows, one per stage of
+  `keyboard → INPUT → intents → UPDATE → state → RENDER → screen`, in that order. Each row is a
+  marker, the stage's name, and a short plain-English detail of what that stage did on the frame
+  you are looking at. A stage that did something is marked `▶` and lit; one that sat still is
+  marked `│` and dim, so the diagram reads without colour as well as with it. Every value on it
+  is one the boxes below are already showing, said shorter — the diagram computes nothing.
+- **One grey caption under each heading**, saying in words what that box is.
+- **Two buttons: "ask an AI about this exact moment."** They build a prompt out of exactly what
+  the panel is showing and copy it to the clipboard — one asking any chat model to walk the
+  frame stage by stage for a fifteen-year-old, one asking an image model to draw the seven rows
+  as a labelled diagram with the busy stages glowing. The prompt also lands in a read-only
+  textarea, so a browser that refuses the copy still leaves the text selected for Ctrl+C. This
+  is the one place the panel writes text a student takes *out* of the file.
+- **The buttons sit second**, directly under the diagram rather than at the bottom in arrow
+  order. A student will not scroll a full panel to find them. The five detail boxes below keep
+  the arrow's order unchanged.
+- **The panel scrolls itself** (`max-height: calc(100vh - 32px)`) instead of growing the page,
+  so the game never slides off a 1366×650 school laptop screen.
+- Everything in §4a still holds unchanged: section 11 only reads, `xrayMemory` is still the one
+  object of X-ray memory (it gains the last key seen, for the diagram's top row), the hook into
+  LOOP is still the same four lines, and deleting section 11, the `<aside>` and those four lines
+  still leaves exactly the same game. `tools/check-xray-removable.mjs` proves it.
+- The file is now ~1,800 lines: the top of §3's target range, with the 2,000 ceiling untouched.
+  **Anything added to the X-ray from here has to pay for itself by cutting something.**
+
+Diagrams belong in `TEARDOWN.md` too, for the same reason: a map of the panel in "Before you
+start", the key-to-pixel chain in Read 4, and the two-snapshots picture in Read 6.
+
+---
+
 ## 5. Scope — what the game actually is
 
 **P1. Build this and stop.**
@@ -251,6 +289,17 @@ Mechanically checkable — run these before calling it done:
 - [ ] (v1.2) `xrayMemory` remains the only X-ray memory; STATE's "three other things" comment
       is still true.
 - [ ] (v1.2) All three `tools/*.mjs` exit 0 after TEARDOWN/CHANGE-ME ranges are refreshed.
+- [ ] (v1.3) The panel's first box is a seven-row diagram, one row per stage of the arrow, in
+      order; rows light with `▶` when their stage acted and dim to `│` when it did not.
+- [ ] (v1.3) Each box in the panel carries a one-line plain-English caption under its heading.
+- [ ] (v1.3) Both "ask an AI" buttons fill the textarea with a prompt containing the live values
+      the panel is showing, report the copy, and hand keyboard focus back so the game still walks.
+- [ ] (v1.3) The panel scrolls inside itself; at 1366×650 with it open there is no horizontal
+      page scroll and the canvas stays on screen.
+- [ ] (v1.3) Section 11 is still removable, `xrayMemory` is still the only X-ray memory, and the
+      hook into LOOP is still the same four lines.
+- [ ] (v1.3) All four `tools/*.mjs` exit 0, and `check-doc-lines.mjs` is clean after the
+      insertion above the script shifted every citation.
 
 Judged by a human, not the agent:
 

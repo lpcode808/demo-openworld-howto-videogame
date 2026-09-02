@@ -37,8 +37,12 @@
   /* The X-ray panel. Its own small stylesheet so it is obvious, just from
      reading this file top to bottom, that deleting it costs nothing else. */
   aside#xray {
-    width: 380px;
+    width: 420px;
     box-sizing: border-box;
+    /* Taller than most laptop screens once it is full, so the panel scrolls
+       itself. Scrolling the whole page instead would slide the game off. */
+    max-height: calc(100vh - 32px);
+    overflow-y: auto;
     margin: 16px 16px 0 0;
     padding: 10px;
     background: #15151f;
@@ -66,7 +70,7 @@
   }
   /* The whole of `state` is short enough to show at once; that is the point. */
   aside#xray pre#xrayState {
-    max-height: 420px;
+    max-height: 300px;
   }
   /* An intent that is currently true (a key held, a press just seen) is
      bright; everything else is dim, so "what is on right now" jumps out. */
@@ -76,6 +80,41 @@
   aside#xray li.on {
     color: #ffd75e;
   }
+  /* The pipe diagram at the top. `pre`, not `pre-wrap`, so its columns stay
+     columns; it is a picture made of characters, and wrapping would break it. */
+  aside#xray ul#xrayPipe {
+    white-space: pre;
+    overflow-x: auto;
+    max-height: none;
+    margin-bottom: 6px;
+  }
+  /* One grey line under each heading saying, in words, what the box shows.
+     The page-wide `p` rule above is for the text under the game, not these. */
+  aside#xray p.hint {
+    margin: 0 0 4px 0;
+    max-width: none;
+    font-size: 11px;
+    color: #7a7a88;
+  }
+  aside#xray button {
+    margin: 2px 4px 4px 0;
+    padding: 4px 6px;
+    background: #26263a;
+    color: #ffd75e;
+    border: 1px solid #44445c;
+    font-family: monospace;
+    font-size: 11px;
+    cursor: pointer;
+  }
+  aside#xray textarea {
+    width: 100%;
+    box-sizing: border-box;
+    background: #0e0e16;
+    color: #8a8a99;
+    border: 1px solid #2a2a3a;
+    font-family: monospace;
+    font-size: 10px;
+  }
 </style>
 </head>
 <body>
@@ -84,19 +123,54 @@
 <p>
   Arrow keys or WASD to walk. Space to talk and to pick a dialogue choice.
   K saves, L loads, N starts over. X opens the X-ray. Inside the X-ray, P
-  pauses and . runs one tick. Open this file in a text editor to see how it
-  works.
+  pauses, . runs one tick, and two buttons copy the moment into a question
+  for an AI. Open this file in a text editor to see how it works.
 </p>
 </main>
 <!-- The X-ray: a window onto the pipe. Hidden until you press X. Filled in by
      section 11 at the bottom of the script. -->
 <aside id="xray" hidden>
   <h2>X-RAY · keyboard → INPUT → intents → UPDATE → state → RENDER → screen</h2>
-  <section><h3>4 · INPUT — intents right now</h3><ul id="xrayIntents"></ul></section>
-  <section><h3>5 · UPDATE — what changed in state</h3><pre id="xrayChanges"></pre></section>
-  <section><h3>6 · COLLIDE — the tile you are facing</h3><pre id="xrayCollide"></pre></section>
-  <section><h3>3 · STATE — everything the game knows</h3><pre id="xrayState"></pre></section>
-  <section><h3>7 · RENDER + 8 · LOOP — the heartbeat</h3><pre id="xrayLoop"></pre></section>
+  <section>
+    <h3>the whole file, as one picture</h3>
+    <p class="hint">One row per stage of the arrow above, in order.
+      ▶ did something on the last frame; │ sat still.</p>
+    <ul id="xrayPipe"></ul>
+  </section>
+  <section>
+    <h3>ask an AI about this exact moment</h3>
+    <p class="hint">Copies the diagram above and every box below into a
+      question you can paste into any chat model. Press P to hold a moment.</p>
+    <button id="xrayAskExplain" type="button">copy: explain this frame</button>
+    <button id="xrayAskDraw" type="button">copy: draw this frame</button>
+    <p class="hint" id="xrayAskStatus">Nothing copied yet.</p>
+    <textarea id="xrayAskText" rows="5" readonly></textarea>
+  </section>
+  <section>
+    <h3>4 · INPUT — intents right now</h3>
+    <p class="hint">What you are asking the game for. Lit means true this instant.</p>
+    <ul id="xrayIntents"></ul>
+  </section>
+  <section>
+    <h3>5 · UPDATE — what changed in state</h3>
+    <p class="hint">Newest first. #n says which update tick did it.</p>
+    <pre id="xrayChanges"></pre>
+  </section>
+  <section>
+    <h3>6 · COLLIDE — the tile you are facing</h3>
+    <p class="hint">The same questions COLLIDE asks before it lets you step.</p>
+    <pre id="xrayCollide"></pre>
+  </section>
+  <section>
+    <h3>3 · STATE — everything the game knows</h3>
+    <p class="hint">The whole world, live. Nothing is kept anywhere else.</p>
+    <pre id="xrayState"></pre>
+  </section>
+  <section>
+    <h3>7 · RENDER + 8 · LOOP — the heartbeat</h3>
+    <p class="hint">How many times each half of the loop has run.</p>
+    <pre id="xrayLoop"></pre>
+  </section>
 </aside>
 <script>
 'use strict';
@@ -497,8 +571,8 @@ function findNpcById(npcId) {
 // Only three other things in the file change at runtime, and none is
 // game knowledge: `intents` in INPUT (a mailbox from the keyboard), the
 // stopwatch inside LOOP (how much time has passed), and `xrayMemory` in
-// the optional X-RAY section (its counters, log and pause switch). None
-// of the three is saved or drawn.
+// the optional X-RAY section (its counters, log, pause switch and the
+// last key it saw). None of the three is saved or drawn.
 const state = {
   // Which entry in `maps` we are standing in.
   currentMap: 'overworld',
@@ -1302,14 +1376,19 @@ requestAnimationFrame(frame);
    the top, and the four LOOP lines that call it: same game.
    ============================================================ */
 
-// The panel and its five inner elements. Looked up once, at load, exactly
+// The panel and every element inside it. Looked up once, at load, exactly
 // the way BOOT looks up the canvas — nothing here is game state.
 const xrayPanel = document.getElementById('xray');
+const xrayPipeList = document.getElementById('xrayPipe');
 const xrayIntentsList = document.getElementById('xrayIntents');
 const xrayChangesText = document.getElementById('xrayChanges');
 const xrayCollideText = document.getElementById('xrayCollide');
 const xrayStateText = document.getElementById('xrayState');
 const xrayLoopText = document.getElementById('xrayLoop');
+const xrayAskExplainButton = document.getElementById('xrayAskExplain');
+const xrayAskDrawButton = document.getElementById('xrayAskDraw');
+const xrayAskStatus = document.getElementById('xrayAskStatus');
+const xrayAskText = document.getElementById('xrayAskText');
 
 // Whether the panel was open, so an edit-save-reload cycle leaves it the
 // way you left it. Kept here, not in CONFIG, on purpose: every trace of
@@ -1326,6 +1405,7 @@ const xrayMemory = {
   recentChanges: [],
   paused: false,
   stepRequested: false,
+  lastKeyDown: '(none yet)',
 };
 
 // Paused frames discard their time instead of banking it, so resuming never
@@ -1387,8 +1467,10 @@ function listChangedFields(before, after, pathSoFar, changesOut) {
 
 // Called every frame, whether the panel is open or not, so the change log
 // never misses something that happened while the X-ray was closed.
+// Hands the list straight back as well, because the pipe diagram wants to
+// say what changed on this frame, not what has changed in the last fourteen.
 function recordChanges(stateBeforeUpdate, stateAfterUpdate) {
-  if (stateBeforeUpdate === stateAfterUpdate) return;
+  if (stateBeforeUpdate === stateAfterUpdate) return [];
   const before = JSON.parse(stateBeforeUpdate);
   const after = JSON.parse(stateAfterUpdate);
   const changes = [];
@@ -1399,6 +1481,69 @@ function recordChanges(stateBeforeUpdate, stateAfterUpdate) {
   while (xrayMemory.recentChanges.length > xrayChangesToKeep) {
     xrayMemory.recentChanges.pop();
   }
+  return changes;
+}
+
+// ---- The pipe, as a picture that moves -------------------------
+// One row per stage of the sentence at the top of this file, in order, so
+// the arrow stops being a slogan on a heading and becomes a readout of what
+// happened on the frame you are looking at.
+const xrayPipeStages = [
+  'keyboard', '4 · INPUT', 'intents', '5 · UPDATE',
+  '3 · state', '7 · RENDER', 'screen',
+];
+
+// The diagram is characters lined up in columns, so a row that wrapped
+// would stop being a diagram. Longer text is cut at this width instead.
+const xrayPipeDetailWidth = 40;
+
+// Built once, at load, the way buildIntentsList builds the intents box:
+// after this the rows change their words, never their number.
+function buildPipeRows() {
+  for (let index = 0; index < xrayPipeStages.length; index++) {
+    const row = document.createElement('li');
+    row.id = 'xrayPipeRow' + index;
+    xrayPipeList.appendChild(row);
+  }
+}
+
+// A stage that did something this frame is marked ▶ and lit; one that sat
+// still is marked │ and dim. Two signals for one fact, so the diagram still
+// reads on a projector where the two colours look the same.
+function showPipeRow(index, isActive, detail) {
+  const row = document.getElementById('xrayPipeRow' + index);
+  const marker = isActive ? '▶ ' : '│ ';
+  const fitted = detail.length > xrayPipeDetailWidth ?
+    detail.slice(0, xrayPipeDetailWidth - 1) + '…' : detail;
+  row.textContent = marker + xrayPipeStages[index].padEnd(12, ' ') + fitted;
+  row.className = isActive ? 'on' : '';
+}
+
+// Re-worded every frame. Nothing is computed here for the diagram's sake:
+// every value on it is one the boxes below are already showing, said shorter.
+function showPipe(updatesThisFrame, changesThisFrame) {
+  const askedFor = [];
+  for (const key in intents) {
+    if (intents[key]) askedFor.push(key);
+  }
+  const asking = askedFor.length > 0;
+  showPipeRow(0, asking, 'last key you pressed: ' + xrayMemory.lastKeyDown);
+  showPipeRow(1, asking, asking ? 'writing that down in intents' : 'nothing to write down');
+  showPipeRow(2, asking, asking ? askedFor.join(' ') : 'every field false');
+  const updateWords = xrayMemory.paused ? 'PAUSED — press . for one step' :
+    'updates this frame: ' + updatesThisFrame;
+  showPipeRow(3, updatesThisFrame > 0, updateWords);
+  // Most frames change nothing — a step takes several ticks — so a row that
+  // only ever said "nothing changed" would hide the thing worth watching.
+  // When this frame was quiet, the row shows the last change that wasn't.
+  let changeWords = 'nothing has changed yet';
+  if (xrayMemory.recentChanges.length > 0) {
+    changeWords = 'last was ' + xrayMemory.recentChanges[0];
+  }
+  if (changesThisFrame.length > 0) changeWords = changesThisFrame[0];
+  showPipeRow(4, changesThisFrame.length > 0, changeWords);
+  showPipeRow(5, true, 'frame ' + xrayMemory.framesDrawn + ' drawn, state untouched');
+  showPipeRow(6, true, 'what you are looking at');
 }
 
 // Runs once, at load: one <li> per field of `intents`. After this,
@@ -1469,16 +1614,117 @@ function showLoop(updatesThisFrame) {
   xrayLoopText.textContent = text;
 }
 
+// ---- Ask an AI about this exact moment -------------------------
+// The boxes above are true but terse. These two buttons copy the same words
+// into a question you can paste into any chat model: one asks for an
+// explanation, one asks for a picture. Both are built from what is on screen
+// at the instant you click, so there is never a second version of the truth
+// for this file to keep in step with the first.
+
+// The one sentence this file is. Both prompts open with it, because a model
+// that has never seen game.html has no other way to know the shape of it.
+const xrayPipeSentence =
+  'keyboard -> INPUT -> intents -> UPDATE -> state -> RENDER -> screen';
+
+// Everything the panel shows, read back out of the panel itself, under
+// headings a stranger can follow.
+function currentPanelReadout() {
+  let text = 'THE PIPE, THIS FRAME\n';
+  for (let index = 0; index < xrayPipeStages.length; index++) {
+    text += '  ' + document.getElementById('xrayPipeRow' + index).textContent + '\n';
+  }
+  text += '\nINTENTS (4 · INPUT)\n';
+  for (const key in intents) {
+    text += '  ' + key.padEnd(18, ' ') + intents[key] + '\n';
+  }
+  text += '\nWHAT UPDATE CHANGED, NEWEST FIRST (5 · UPDATE)\n  ';
+  text += xrayMemory.recentChanges.join('\n  ') + '\n';
+  text += '\nTHE TILE I AM FACING (6 · COLLIDE)\n  ';
+  text += xrayCollideText.textContent.split('\n').join('\n  ') + '\n';
+  text += '\nTHE HEARTBEAT (7 · RENDER + 8 · LOOP)\n  ';
+  text += xrayLoopText.textContent.split('\n').join('\n  ') + '\n';
+  text += '\nEVERYTHING THE GAME KNOWS (3 · STATE)\n' + xrayStateText.textContent + '\n';
+  return text;
+}
+
+// The words half: ask for this one frame to be walked, stage by stage.
+function buildExplainPrompt() {
+  let text = 'I am learning how video games work by reading the source of one.\n';
+  text += 'It is a small open-world game in a single HTML file, written to be\n';
+  text += 'read rather than played. The whole file is one sentence, repeated\n';
+  text += 'about sixty times a second:\n\n  ' + xrayPipeSentence + '\n\n';
+  text += 'The game has an x-ray panel built into it. This is exactly what the\n';
+  text += 'panel said on one single frame:\n\n';
+  text += '--- begin readout ---\n' + currentPanelReadout() + '--- end readout ---\n\n';
+  text += 'Walk me through that one frame, one stage of the arrow at a time.\n';
+  text += 'For each stage, say what it did using the real values above, and say\n';
+  text += 'which of those values it was allowed to change. Assume I am fifteen,\n';
+  text += 'and explain any word a beginner would not know. Finish with one thing\n';
+  text += 'in the readout I have probably misunderstood, and one small experiment\n';
+  text += 'I could run in the game to find out whether you are right.\n';
+  return text;
+}
+
+// The picture half: the same seven rows, described so an image model can
+// draw them. One instruction per sentence — image models lose the thread of
+// a long paragraph and start inventing words.
+function buildDrawPrompt() {
+  let text = 'Draw one diagram, flat vector style, like a good textbook\n';
+  text += 'illustration: landscape, plain background, no shadows.\n\n';
+  text += 'Seven labelled boxes in a row, joined left to right by arrows. They\n';
+  text += 'show how a key press becomes a picture inside a small video game.\n';
+  text += 'These lines are a real reading, taken while the game was running:\n\n';
+  for (let index = 0; index < xrayPipeStages.length; index++) {
+    text += '  ' + document.getElementById('xrayPipeRow' + index).textContent + '\n';
+  }
+  text += '\nGive a warm yellow glow to every box whose line starts with ▶ —\n';
+  text += 'those stages were busy on this frame. Draw the boxes whose line\n';
+  text += 'starts with │ in plain grey; those sat still. Put the stage name\n';
+  text += 'large inside each box, and the short text after it underneath, in\n';
+  text += 'small letters. Write this caption above the row:\n\n';
+  text += '  ' + xrayPipeSentence + '\n\n';
+  text += 'Spell every label exactly as written. No other text in the image.\n';
+  return text;
+}
+
+// Selecting the box and asking the browser to copy the selection is the one
+// kind of copy that behaves the same from a file:// page in Edge and Chrome.
+// If the browser refuses, the text is still selected, so Ctrl+C finishes it.
+function copyPromptToClipboard(promptText) {
+  xrayAskText.value = promptText;
+  xrayAskText.focus();
+  xrayAskText.select();
+  if (document.execCommand('copy')) {
+    // Drop the highlight and scroll back to the first line, then hand the
+    // keyboard back to the game or the next W lands in the box.
+    xrayAskText.setSelectionRange(0, 0);
+    xrayAskText.scrollTop = 0;
+    xrayAskText.blur();
+    xrayAskStatus.textContent = 'Copied. Paste it into any AI chat.';
+    return;
+  }
+  xrayAskStatus.textContent = 'The browser said no — it is selected, press Ctrl+C.';
+}
+
+function onAskExplainClick() {
+  copyPromptToClipboard(buildExplainPrompt());
+}
+
+function onAskDrawClick() {
+  copyPromptToClipboard(buildDrawPrompt());
+}
+
 // The LOOP calls this every frame, right after the purity check, so by the
 // time anything here reads `state`, RENDER has already proven this frame
 // changed nothing. Counting and recording happen even while the panel is
-// closed; only the five panels below are skipped to save the work.
+// closed; only the boxes below are skipped, to save the work.
 function showXray(stateBeforeUpdate, stateAfterUpdate, updatesThisFrame) {
   xrayMemory.framesDrawn += 1;
   xrayMemory.updatesRun += updatesThisFrame;
-  recordChanges(stateBeforeUpdate, stateAfterUpdate);
+  const changesThisFrame = recordChanges(stateBeforeUpdate, stateAfterUpdate);
   xrayMemory.stepRequested = false;
   if (xrayPanel.hidden) return;
+  showPipe(updatesThisFrame, changesThisFrame);
   showIntents();
   showChanges();
   showCollide();
@@ -1519,8 +1765,11 @@ function requestOneStep() {
 // The X-ray listens to the keyboard on its own, separate from INPUT, so
 // that section stays about the game and never has to mention this panel.
 function onXrayKeyDown(event) {
-  if (event.repeat) return;
   const key = event.key.toLowerCase();
+  // The one place the X-ray watches the keyboard for the game's sake: the
+  // diagram's top row. Everything else it shows is read back out of state.
+  xrayMemory.lastKeyDown = key === ' ' ? 'space' : key;
+  if (event.repeat) return;
   if (key === 'x') toggleXrayPanel();
   if (key === 'p') togglePause();
   if (key === '.') requestOneStep();
@@ -1537,9 +1786,12 @@ function restoreXrayOpenState() {
   }
 }
 
+buildPipeRows();
 buildIntentsList();
 restoreXrayOpenState();
 window.addEventListener('keydown', onXrayKeyDown);
+xrayAskExplainButton.addEventListener('click', onAskExplainClick);
+xrayAskDrawButton.addEventListener('click', onAskDrawClick);
 
 </script>
 </body>

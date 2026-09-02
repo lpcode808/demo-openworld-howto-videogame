@@ -25,6 +25,13 @@ const offsetForDirection = {
   left: { dx: -1, dy: 0 }, right: { dx: 1, dy: 0 },
 };
 
+// The seven pipe-diagram stage labels, in order. Mirrors the game's own
+// `xrayPipeStages` array in section 11.
+const xrayPipeStageLabels = [
+  'keyboard', '4 · INPUT', 'intents', '5 · UPDATE',
+  '3 · state', '7 · RENDER', 'screen',
+];
+
 const consoleIssues = []; // { type: 'error' | 'warning' | 'pageerror', text }
 
 // ------------------------------------------------------------------
@@ -82,6 +89,71 @@ async function getXrayLoopCounters(page) {
       paused: text.includes('clock: PAUSED'),
     };
   });
+}
+
+// Reads the seven <li> rows of the pipe diagram: id, full text, and class.
+async function getPipeRows(page) {
+  return page.evaluate(() => Array.from(document.querySelectorAll('#xrayPipe li')).map((row) => ({
+    id: row.id, text: row.textContent, className: row.className,
+  })));
+}
+
+// Polls one pipe row's text until it contains `substring`, or throws with a
+// description. Mirrors waitForCondition above, but for a DOM row instead of
+// game `state`.
+async function waitForPipeRowText(page, rowIndex, substring, timeoutMs, description) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    const text = await page.evaluate(
+      (index) => document.getElementById('xrayPipeRow' + index).textContent, rowIndex);
+    if (text.includes(substring)) return text;
+    await page.waitForTimeout(25);
+  }
+  const text = await page.evaluate(
+    (index) => document.getElementById('xrayPipeRow' + index).textContent, rowIndex);
+  throw new Error('Timed out waiting for ' + description + '. Last text: "' + text + '"');
+}
+
+// Watches, from inside the page via requestAnimationFrame (so no update can
+// land between round trips unseen), for `xrayMemory.updatesRun` to change,
+// then reports that pipe row's text and class on the exact frame it changed.
+async function watchPipeRowThroughNextUpdate(page, rowIndex) {
+  return page.evaluate((index) => new Promise((resolve, reject) => {
+    const updatesRunBefore = xrayMemory.updatesRun;
+    let framesWaited = 0;
+    function checkNextFrame() {
+      framesWaited += 1;
+      if (xrayMemory.updatesRun !== updatesRunBefore) {
+        const row = document.getElementById('xrayPipeRow' + index);
+        resolve({ text: row.textContent, className: row.className });
+        return;
+      }
+      if (framesWaited > 120) {
+        reject(new Error('xrayMemory.updatesRun never changed within 120 animation frames'));
+        return;
+      }
+      requestAnimationFrame(checkNextFrame);
+    }
+    requestAnimationFrame(checkNextFrame);
+  }), rowIndex);
+}
+
+// Clicks one of the "ask an AI" buttons and, inside one synchronous page
+// turn so no animation frame can land between "what the panel showed" and
+// "what got copied", captures the pipe rows at the moment of the click
+// alongside the button's result.
+async function clickAskButton(page, buttonId) {
+  return page.evaluate((id) => {
+    const pipeRowsAtClick = Array.from(document.querySelectorAll('#xrayPipe li'))
+      .map((row) => row.textContent);
+    document.getElementById(id).click();
+    return {
+      pipeRowsAtClick,
+      promptText: document.getElementById('xrayAskText').value,
+      statusText: document.getElementById('xrayAskStatus').textContent,
+      activeElementTag: document.activeElement.tagName,
+    };
+  }, buttonId);
 }
 
 // ------------------------------------------------------------------
@@ -418,9 +490,10 @@ async function runPlaythrough(page) {
 }
 
 // ------------------------------------------------------------------
-// X-RAY: the v1.1/v1.2 panel, its open/closed memory, and pause/step.
-// Section 11 in game.html; keys X, P and "." on their own listener,
-// separate from the game's own INPUT section.
+// X-RAY: the v1.1/v1.2 panel, its open/closed memory, pause/step, the
+// v1.3 pipe diagram, and the v1.3 "ask an AI" buttons. Section 11 in
+// game.html; keys X, P and "." on their own listener, separate from the
+// game's own INPUT section.
 // ------------------------------------------------------------------
 
 // (v1.1) X shows the panel; X again hides it. Starts hidden on this fresh
@@ -621,6 +694,203 @@ async function checkPauseDoesNotSurviveReload(page) {
     '(player moved ' + tilesMoved + ' tiles)');
 }
 
+// (v1.3) The pipe diagram has exactly seven rows, one per stage of the
+// sentence in the section-11 banner, in that order.
+async function checkPipeDiagramShape(page) {
+  const rows = await getPipeRows(page);
+  assertTrue(rows.length === 7,
+    'expected the pipe diagram to have exactly 7 rows, found ' + rows.length);
+  for (let index = 0; index < xrayPipeStageLabels.length; index++) {
+    assertTrue(rows[index].id === 'xrayPipeRow' + index,
+      'expected row ' + index + ' to have id "xrayPipeRow' + index + '", got "' +
+      rows[index].id + '"');
+    const label = rows[index].text.slice(2, 14).trimEnd();
+    assertTrue(label === xrayPipeStageLabels[index],
+      'expected row ' + index + ' to show stage "' + xrayPipeStageLabels[index] + '", got "' +
+      label + '"');
+  }
+  console.log('PASS — the pipe diagram has exactly 7 rows, in order: ' +
+    xrayPipeStageLabels.join(' → '));
+}
+
+// (v1.3) Holding ArrowRight lights the keyboard/INPUT/intents rows (▶ and
+// class "on") and names the key and the intent it set; releasing it dims
+// them again (│, no class). The player only steps every few ticks, so this
+// does not check the "3 · state" row on any particular frame — it walks a
+// few tiles and then checks that row mentions the field that changed.
+async function checkArrowRightLightsPipeRows(page) {
+  await page.keyboard.down('ArrowRight');
+  await page.waitForTimeout(100);
+  const whileHeld = await getPipeRows(page);
+  for (let index = 0; index < 3; index++) {
+    assertTrue(whileHeld[index].text.startsWith('▶ '),
+      'expected row ' + index + ' to start with "▶ " while ArrowRight is held, got "' +
+      whileHeld[index].text + '"');
+    assertTrue(whileHeld[index].className === 'on',
+      'expected row ' + index + ' to have class "on" while ArrowRight is held, got "' +
+      whileHeld[index].className + '"');
+  }
+  assertTrue(whileHeld[0].text.includes('arrowright'),
+    'expected the "keyboard" row to name the key, got "' + whileHeld[0].text + '"');
+  assertTrue(whileHeld[2].text.includes('moveRight'),
+    'expected the "intents" row to name moveRight, got "' + whileHeld[2].text + '"');
+  console.log('PASS — holding ArrowRight lit the keyboard/INPUT/intents rows and named the ' +
+    'key and moveRight');
+
+  await page.keyboard.up('ArrowRight');
+  await page.waitForTimeout(100);
+  const afterRelease = await getPipeRows(page);
+  for (let index = 0; index < 3; index++) {
+    assertTrue(afterRelease[index].text.startsWith('│ '),
+      'expected row ' + index + ' to start with "│ " once ArrowRight is released, got "' +
+      afterRelease[index].text + '"');
+    assertTrue(afterRelease[index].className === '',
+      'expected row ' + index + ' to have no class once ArrowRight is released, got "' +
+      afterRelease[index].className + '"');
+  }
+  console.log('PASS — releasing ArrowRight dimmed the keyboard/INPUT/intents rows again');
+
+  for (let step = 0; step < 4; step++) {
+    await tapKey(page, 'ArrowRight');
+    await page.waitForTimeout(80);
+  }
+  await waitForPipeRowText(page, 4, 'player.tileX', 2000,
+    'the "3 · state" row to mention player.tileX after walking a few tiles');
+  console.log('PASS — after walking a few tiles, the "3 · state" row named player.tileX');
+}
+
+// (v1.3) While paused, the "5 · UPDATE" row says PAUSED; pressing "." for
+// one step lights that same row (▶, class "on") on the exact frame the
+// step runs, and it goes back to reading PAUSED once that frame passes.
+async function checkPipeUpdateRowShowsPauseAndStep(page) {
+  await tapKey(page, 'p'); // pause
+  await page.waitForTimeout(50);
+  const paused = await getPipeRows(page);
+  assertTrue(paused[3].text.includes('PAUSED'),
+    'expected the "5 · UPDATE" row to say PAUSED, got "' + paused[3].text + '"');
+  console.log('PASS — while paused, the "5 · UPDATE" row said PAUSED');
+
+  const stepWatch = watchPipeRowThroughNextUpdate(page, 3);
+  await tapKey(page, '.');
+  const stepped = await stepWatch;
+  assertTrue(stepped.text.startsWith('▶ '),
+    'expected the "5 · UPDATE" row to start with "▶ " on the frame the step ran, got "' +
+    stepped.text + '"');
+  assertTrue(stepped.className === 'on',
+    'expected the "5 · UPDATE" row to have class "on" on the frame the step ran, got "' +
+    stepped.className + '"');
+  console.log('PASS — pressing "." lit the "5 · UPDATE" row on the exact frame the step ran');
+
+  await page.waitForTimeout(50);
+  const settled = await getPipeRows(page);
+  assertTrue(settled[3].text.includes('PAUSED'),
+    'expected the "5 · UPDATE" row to read PAUSED again once the step frame passed, got "' +
+    settled[3].text + '"');
+  console.log('PASS — the "5 · UPDATE" row went back to PAUSED once the step frame passed');
+}
+
+// (v1.3) Clicking "copy: explain this frame" fills the textarea with a
+// prompt built from exactly what the panel is showing right now: the pipe
+// sentence, all seven pipe rows, the live player.tileX value, and the
+// instruction text — and hands the keyboard back to the game afterward.
+async function checkAskExplainButton(page) {
+  // The previous check left the game paused; resume it, because proving
+  // the keyboard still works after copying means actually walking.
+  await tapKey(page, 'p');
+  await page.waitForTimeout(50);
+
+  const stateAtClick = await getState(page);
+  const result = await clickAskButton(page, 'xrayAskExplain');
+
+  assertTrue(result.promptText.includes(
+    'keyboard -> INPUT -> intents -> UPDATE -> state -> RENDER -> screen'),
+    'expected the explain prompt to include the pipe sentence');
+  for (const rowText of result.pipeRowsAtClick) {
+    assertTrue(result.promptText.includes(rowText),
+      'expected the explain prompt to include the pipe row: "' + rowText + '"');
+  }
+  assertTrue(result.promptText.includes('"tileX": ' + stateAtClick.player.tileX),
+    'expected the explain prompt to include the live player.tileX value (' +
+    stateAtClick.player.tileX + ')');
+  assertTrue(result.promptText.includes(
+    'Walk me through that one frame, one stage of the arrow at a time.'),
+    'expected the explain prompt to include the walk-through instruction');
+  console.log('PASS — "copy: explain this frame" filled the textarea with the pipe sentence, ' +
+    'all seven pipe rows, the live player.tileX, and the instruction text');
+
+  assertTrue(result.statusText === 'Copied. Paste it into any AI chat.',
+    'expected the status line to report a successful copy, got "' + result.statusText + '"');
+  console.log('PASS — the status line reported the copy');
+
+  assertTrue(result.activeElementTag === 'BODY',
+    'expected focus to return to <body> after copying, activeElement is <' +
+    result.activeElementTag + '>');
+  const beforeWalk = await getState(page);
+  await page.keyboard.down('ArrowRight');
+  await page.waitForTimeout(300);
+  await page.keyboard.up('ArrowRight');
+  await page.waitForTimeout(50);
+  const afterWalk = await getState(page);
+  const tilesMoved = afterWalk.player.tileX - beforeWalk.player.tileX;
+  assertTrue(tilesMoved > 0,
+    'expected the game to still take keyboard input after copying, walked ' + tilesMoved +
+    ' tile(s) east');
+  console.log('PASS — focus returned to <body>, so the game still took keyboard input, ' +
+    'walking ' + tilesMoved + ' tile(s) east');
+}
+
+// (v1.3) Clicking "copy: draw this frame" replaces the textarea with a
+// different prompt that also carries all seven pipe rows, but asks for a
+// picture instead of an explanation.
+// This one clicks the way a student does — a real browser click from
+// Playwright, not element.click() from inside the page — because the copy
+// itself depends on the browser treating it as a genuine user gesture. The
+// trade-off is that the frame counter in the "7 · RENDER" row moves between
+// the click and the read, so this check asserts on the stage labels, which
+// do not change, rather than on each row's exact text.
+async function checkAskDrawButton(page) {
+  const explainPromptText = await page.evaluate(() => document.getElementById('xrayAskText').value);
+  await page.click('#xrayAskDraw');
+  await page.waitForTimeout(50);
+  const promptText = await page.evaluate(() => document.getElementById('xrayAskText').value);
+  const statusText = await page.evaluate(
+    () => document.getElementById('xrayAskStatus').textContent);
+
+  assertTrue(promptText !== explainPromptText,
+    'expected "copy: draw this frame" to replace the textarea with a different prompt');
+  for (const label of xrayPipeStageLabels) {
+    assertTrue(promptText.includes(label),
+      'expected the draw prompt to include the pipe row for "' + label + '"');
+  }
+  assertTrue(promptText.includes('Draw one diagram'),
+    'expected the draw prompt to ask for a diagram');
+  assertTrue(statusText === 'Copied. Paste it into any AI chat.',
+    'expected a real user click to copy, status line says "' + statusText + '"');
+  console.log('PASS — a real click on "copy: draw this frame" replaced the textarea with a ' +
+    'different prompt carrying all seven stages, asked for a diagram, and reported the copy');
+}
+
+// (v1.3) Both buttons copy to the real clipboard, not just the textarea —
+// read it back the way pasting into a chat model would. The textarea
+// currently holds the draw prompt (the last button clicked), so that is
+// what should be on the clipboard; if the browser will not hand the
+// clipboard back in this environment, that is reported as a failure here,
+// not skipped quietly.
+async function checkClipboardReceivedPrompt(page) {
+  const textareaValue = await page.evaluate(() => document.getElementById('xrayAskText').value);
+  let clipboardText;
+  try {
+    clipboardText = await page.evaluate(() => navigator.clipboard.readText());
+  } catch (error) {
+    throw new Error('could not read the clipboard to confirm the copy reached it ' +
+      '(navigator.clipboard.readText() failed: ' + error.message + ')');
+  }
+  assertTrue(clipboardText === textareaValue,
+    'expected the clipboard to hold exactly what "copy: draw this frame" put in the textarea');
+  console.log('PASS — the clipboard actually received the copied prompt (read back with ' +
+    'navigator.clipboard.readText())');
+}
+
 async function runXrayChecks(page, world) {
   await checkXrayToggle(page);
   await checkXrayOpenStateSurvivesReload(page, world);
@@ -630,6 +900,12 @@ async function runXrayChecks(page, world) {
   await checkClosingPanelWhilePausedResumesGame(page);
   await checkPauseKeysInertWithPanelHidden(page);
   await checkPauseDoesNotSurviveReload(page);
+  await checkPipeDiagramShape(page);
+  await checkArrowRightLightsPipeRows(page);
+  await checkPipeUpdateRowShowsPauseAndStep(page);
+  await checkAskExplainButton(page);
+  await checkAskDrawButton(page);
+  await checkClipboardReceivedPrompt(page);
 }
 
 async function waitForCanvasReady(page) {
@@ -647,6 +923,9 @@ async function main() {
   const startTimeMs = Date.now();
   const browser = await chromium.launch({ headless: true });
   const context = await browser.newContext();
+  // The X-ray "ask an AI" buttons copy to the real clipboard; grant it here
+  // so runXrayChecks can read the clipboard back and confirm that.
+  await context.grantPermissions(['clipboard-read', 'clipboard-write']);
   const page = await context.newPage();
 
   page.on('console', (message) => {
