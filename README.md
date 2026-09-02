@@ -1,5 +1,4 @@
 # How to Read an Open-World Video Game
-
 An open-world adventure game **built to be read, not played.** One HTML file, ~1,200 lines,
 no build, no dependencies, no internet. It runs in Microsoft Edge and Chrome.
 
