@@ -2,8 +2,8 @@
 An open-world adventure game **built to be read, not played.** One HTML file, ~1,800 lines,
 no build, no dependencies, no internet. It runs in Microsoft Edge and Chrome.
 
-**Open it:** [play it](https://lpcode808.github.io/demo-openworld-howto-videogame/) or
-download `game.html` and double-click. Arrows/WASD walk, Space talks, K saves,
+**Open it:** [play it on GitHub Pages](https://lpcode808.github.io/demo-openworld-howto-videogame/)
+or download `game.html` and double-click. Arrows/WASD walk, Space talks, K saves,
 L loads, N starts over. Three quests, two maps, five minutes.
 
 **Watch it run:** press X for the x-ray, a side panel that shows keys becoming intents becoming
