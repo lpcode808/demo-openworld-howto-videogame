@@ -7,13 +7,20 @@
      one" so the console never shows a missing-file error. -->
 <link rel="icon" href="data:,">
 <style>
-  /* The page is a dark frame around one canvas. Everything you see in the
-     game is drawn onto that canvas by the JavaScript below. */
+  /* The page is a dark frame around one canvas, with an optional side panel
+     (the X-ray, section 11) to its right. Everything you see in the game
+     itself is still drawn onto the canvas by the JavaScript below. */
   body {
     margin: 0;
     background: #101018;
     color: #ddd;
     font-family: monospace;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: center;
+  }
+  main {
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -27,14 +34,69 @@
     font-size: 13px;
     color: #888;
   }
+  /* The X-ray panel. Its own small stylesheet so it is obvious, just from
+     reading this file top to bottom, that deleting it costs nothing else. */
+  aside#xray {
+    width: 380px;
+    box-sizing: border-box;
+    margin: 16px 16px 0 0;
+    padding: 10px;
+    background: #15151f;
+    color: #ddd;
+    font-family: monospace;
+    font-size: 12px;
+  }
+  aside#xray h2 {
+    margin: 0 0 8px 0;
+    font-size: 13px;
+    color: #ffd75e;
+  }
+  aside#xray h3 {
+    margin: 10px 0 4px 0;
+    font-size: 12px;
+    color: #eee;
+  }
+  aside#xray ul, aside#xray pre {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    white-space: pre-wrap;
+    max-height: 160px;
+    overflow-y: auto;
+  }
+  /* The whole of `state` is short enough to show at once; that is the point. */
+  aside#xray pre#xrayState {
+    max-height: 420px;
+  }
+  /* An intent that is currently true (a key held, a press just seen) is
+     bright; everything else is dim, so "what is on right now" jumps out. */
+  aside#xray li {
+    color: #8a8a99;
+  }
+  aside#xray li.on {
+    color: #ffd75e;
+  }
 </style>
 </head>
 <body>
+<main>
 <canvas id="gameCanvas"></canvas>
 <p>
   Arrow keys or WASD to walk. Space to talk and to pick a dialogue choice.
-  K saves, L loads, N starts over. Open this file in a text editor to see how it works.
+  K saves, L loads, N starts over. X opens the X-ray. Open this file in a
+  text editor to see how it works.
 </p>
+</main>
+<!-- The X-ray: a window onto the pipe. Hidden until you press X. Filled in by
+     section 11 at the bottom of the script. -->
+<aside id="xray" hidden>
+  <h2>X-RAY · keyboard → INPUT → intents → UPDATE → state → RENDER → screen</h2>
+  <section><h3>4 · INPUT — intents right now</h3><ul id="xrayIntents"></ul></section>
+  <section><h3>5 · UPDATE — what changed in state</h3><pre id="xrayChanges"></pre></section>
+  <section><h3>6 · COLLIDE — the tile you are facing</h3><pre id="xrayCollide"></pre></section>
+  <section><h3>3 · STATE — everything the game knows</h3><pre id="xrayState"></pre></section>
+  <section><h3>7 · RENDER + 8 · LOOP — the heartbeat</h3><pre id="xrayLoop"></pre></section>
+</aside>
 <script>
 'use strict';
 
@@ -42,15 +104,19 @@
    HOW TO READ THIS FILE
 
    This is a whole open-world game in one file, written to be read.
-   It is split into ten numbered sections. Each one opens with a
-   banner like the one just below, and each banner says what to
-   look for. Read them in order the first time; after that, jump.
+   It is split into ten numbered sections, plus one optional 11th.
+   Each one opens with a banner like the one just below, and each
+   banner says what to look for. Read them in order the first time;
+   after that, jump.
 
      1 CONFIG   the numbers            6 COLLIDE  what blocks you
      2 DATA     the world as text      7 RENDER   state -> pixels
      3 STATE    what the game knows    8 LOOP     the heartbeat
      4 INPUT    keys -> intents        9 SAVE     state -> storage
      5 UPDATE   intents -> state      10 BOOT     start here
+    11 X-RAY    a window onto the pipe (optional)
+
+   Press X in the game to watch the arrow above happen live.
 
    The whole game is one sentence, repeated sixty times a second:
 
@@ -427,10 +493,10 @@ function findNpcById(npcId) {
 // This is the single source of truth. Every fact about the world that can
 // change lives in this one object, so there is nowhere for a bug to hide.
 //
-// Only two other things in the file change at runtime, and neither is
-// game knowledge: `intents` in INPUT (a mailbox from the keyboard) and the
-// stopwatch inside LOOP (how much time has passed). Neither is saved and
-// neither is drawn.
+// Only three other things in the file change at runtime, and none is
+// game knowledge: `intents` in INPUT (a mailbox from the keyboard), the
+// stopwatch inside LOOP (how much time has passed), and `xrayMemory` in
+// the optional X-RAY section. None of the three is saved or drawn.
 const state = {
   // Which entry in `maps` we are standing in.
   currentMap: 'overworld',
@@ -974,7 +1040,7 @@ function drawHud() {
 
   context.fillStyle = colors.hudDim;
   context.font = fonts.small;
-  const helpText = 'Arrows/WASD move · Space talk · K save · L load · N new game';
+  const helpText = 'Arrows/WASD move · Space talk · K save · L load · N new game · X x-ray';
   context.fillText(helpText, textX, top + hudHeightInPixels - lineHeight / 2);
 
   context.font = fonts.hud;
@@ -1072,7 +1138,7 @@ function assertRenderChangedNothing(stateBeforeRender) {
    8 · LOOP — the heartbeat
    What to look for: the browser calls `frame` about sixty times a
    second. Each call catches the simulation up in fixed steps, then
-   draws once. This is the most important dozen lines in the file.
+   draws once. This is the most important function in the file.
    ============================================================ */
 
 // The loop's stopwatch. Not game state: never saved, never drawn.
@@ -1084,13 +1150,19 @@ function frame(nowInMs) {
   if (elapsedSeconds > maxFrameGapInSeconds) elapsedSeconds = maxFrameGapInSeconds;
   lastFrameTimeInMs = nowInMs;
   unsimulatedSeconds += elapsedSeconds;
+  // A text snapshot of state before UPDATE runs. X-RAY compares it with the
+  // snapshot taken before RENDER to show exactly which fields UPDATE changed.
+  const stateBeforeUpdate = JSON.stringify(state);
+  let updatesThisFrame = 0;
   while (unsimulatedSeconds >= fixedStepInSeconds) {
     update(fixedStepInSeconds);
     unsimulatedSeconds -= fixedStepInSeconds;
+    updatesThisFrame += 1;
   }
   const stateBeforeRender = JSON.stringify(state);
   render();
   assertRenderChangedNothing(stateBeforeRender);
+  showXray(stateBeforeUpdate, stateBeforeRender, updatesThisFrame);
   requestAnimationFrame(frame);
 }
 
@@ -1216,6 +1288,211 @@ if (loadGame()) {
 }
 
 requestAnimationFrame(frame);
+
+
+/* ============================================================
+   11 · X-RAY — a window onto the pipe, while it runs
+   What to look for: everything here only READS state and
+   intents and writes words into the side panel. Press X in
+   the game to open it. Delete this section, the <aside> at
+   the top, and the three LOOP lines that call it: same game.
+   ============================================================ */
+
+// The panel and its five inner elements. Looked up once, at load, exactly
+// the way BOOT looks up the canvas — nothing here is game state.
+const xrayPanel = document.getElementById('xray');
+const xrayIntentsList = document.getElementById('xrayIntents');
+const xrayChangesText = document.getElementById('xrayChanges');
+const xrayCollideText = document.getElementById('xrayCollide');
+const xrayStateText = document.getElementById('xrayState');
+const xrayLoopText = document.getElementById('xrayLoop');
+
+// Whether the panel was open, so an edit-save-reload cycle leaves it the
+// way you left it. Kept here, not in CONFIG, on purpose: every trace of
+// the X-ray, including its one line of storage, lives in this section, so
+// deleting the section removes all of it.
+const xrayStorageKey = 'open-world-how-to-xray-open';
+
+// The third and last thing outside `state` that changes while the game
+// runs (the other two are `intents` in INPUT and the stopwatch in LOOP).
+// Never saved, never drawn on the canvas — it only feeds this side panel.
+const xrayMemory = {
+  framesDrawn: 0,
+  updatesRun: 0,
+  recentChanges: [],
+};
+
+// How many change lines the panel remembers. Older ones fall off the end.
+const xrayChangesToKeep = 14;
+
+// These two fields tick on almost every step. Logging them would push
+// every real change off the list within a second or two, so the diff
+// below skips them. They still show up whole in the STATE panel.
+const xrayQuietFields = ['player.stepCooldown', 'notice.secondsLeft'];
+
+// A JSON.stringify replacer: numbers are rounded to 2 decimals so the
+// panel reads "3.14" instead of "3.14159265358979". Everything else is
+// passed through unchanged. A named function, not an arrow, so it reads
+// like every other function in the file.
+function roundForDisplay(key, value) {
+  if (typeof value !== 'number') return value;
+  return Math.round(value * 100) / 100;
+}
+
+// Walks two plain objects parsed from JSON.stringify snapshots and pushes
+// one line into changesOut for every value that differs. Recurses into
+// nested objects, so a change inside state.player shows up as the readable
+// "player.tileX", not as "player changed".
+function listChangedFields(before, after, pathSoFar, changesOut) {
+  // Every key that appears in either snapshot, listed once.
+  const allKeys = Object.keys(after);
+  for (const key in before) {
+    if (!allKeys.includes(key)) allKeys.push(key);
+  }
+  for (const key of allKeys) {
+    const beforeValue = before[key];
+    const afterValue = after[key];
+    const beforeIsObject = typeof beforeValue === 'object' && beforeValue !== null &&
+      !Array.isArray(beforeValue);
+    const afterIsObject = typeof afterValue === 'object' && afterValue !== null &&
+      !Array.isArray(afterValue);
+    if (beforeIsObject && afterIsObject) {
+      listChangedFields(beforeValue, afterValue, pathSoFar + key + '.', changesOut);
+      continue;
+    }
+    if (xrayQuietFields.includes(pathSoFar + key)) continue;
+
+    const beforeText = JSON.stringify(beforeValue, roundForDisplay);
+    const afterText = JSON.stringify(afterValue, roundForDisplay);
+    if (beforeText !== afterText) {
+      changesOut.push(pathSoFar + key + '  ' + beforeText + '  →  ' + afterText);
+    }
+  }
+}
+
+// Called every frame, whether the panel is open or not, so the change log
+// never misses something that happened while the X-ray was closed.
+function recordChanges(stateBeforeUpdate, stateAfterUpdate) {
+  if (stateBeforeUpdate === stateAfterUpdate) return;
+  const before = JSON.parse(stateBeforeUpdate);
+  const after = JSON.parse(stateAfterUpdate);
+  const changes = [];
+  listChangedFields(before, after, '', changes);
+  for (const change of changes) {
+    xrayMemory.recentChanges.unshift('#' + xrayMemory.updatesRun + '  ' + change);
+  }
+  while (xrayMemory.recentChanges.length > xrayChangesToKeep) {
+    xrayMemory.recentChanges.pop();
+  }
+}
+
+// Runs once, at load: one <li> per field of `intents`. After this,
+// showIntents only ever changes text and class, never adds or removes
+// elements, the same way drawHud never creates new canvas shapes.
+function buildIntentsList() {
+  for (const key in intents) {
+    const item = document.createElement('li');
+    item.id = 'xrayIntent_' + key;
+    xrayIntentsList.appendChild(item);
+  }
+}
+
+function showIntents() {
+  for (const key in intents) {
+    const item = document.getElementById('xrayIntent_' + key);
+    const value = intents[key];
+    item.textContent = key.padEnd(16, ' ') + value;
+    item.className = value ? 'on' : '';
+  }
+}
+
+function showChanges() {
+  xrayChangesText.textContent = xrayMemory.recentChanges.join('\n');
+}
+
+// Everything a player might ask about the tile they are facing, using the
+// exact same pure functions COLLIDE itself uses to decide it. Nothing new
+// is computed here; this only narrates functions that already exist.
+function showCollide() {
+  const player = state.player;
+  const offset = directionOffsets[player.facing];
+  const facingX = player.tileX + offset.dx;
+  const facingY = player.tileY + offset.dy;
+  const tileCharacter = tileAt(state.currentMap, facingX, facingY);
+  const tileName = tileTypes[tileCharacter].name;
+  const canWalk = canWalkTo(state.currentMap, facingX, facingY);
+  const npcThere = findNpcAt(state.currentMap, facingX, facingY);
+  const doorThere = findDoorAt(state.currentMap, facingX, facingY);
+
+  let text = 'facing: ' + player.facing + ' → tile (' + facingX + ', ' + facingY + ')\n';
+  text += "tile: '" + tileCharacter + "' = " + tileName + '\n';
+  text += 'walkable: ' + (canWalk ? 'yes' : 'no') + '\n';
+  text += 'someone there: ' + (npcThere === null ? '—' : npcThere.name) + '\n';
+  text += 'door: ' + (doorThere === null ? '—' : '→ ' + maps[doorThere.toMap].title);
+  if (tileCharacter === 'B') {
+    text += '\nbridge: walkable only when flags.bridgeBuilt (now ' +
+      state.flags.bridgeBuilt + ')';
+  }
+  xrayCollideText.textContent = text;
+}
+
+function showState() {
+  xrayStateText.textContent = JSON.stringify(state, roundForDisplay, 1);
+}
+
+function showLoop(updatesThisFrame) {
+  const camera = computeCamera();
+  let text = 'frames drawn: ' + xrayMemory.framesDrawn + '\n';
+  text += 'updates run:  ' + xrayMemory.updatesRun +
+    '   (this frame: ' + updatesThisFrame + ')\n';
+  text += 'camera: top-left tile (' + camera.tileX + ', ' + camera.tileY + ')\n';
+  text += 'render purity: checked ✓  (the game halts if RENDER ever writes state)';
+  xrayLoopText.textContent = text;
+}
+
+// The LOOP calls this every frame, right after the purity check, so by the
+// time anything here reads `state`, RENDER has already proven this frame
+// changed nothing. Counting and recording happen even while the panel is
+// closed; only the five panels below are skipped to save the work.
+function showXray(stateBeforeUpdate, stateAfterUpdate, updatesThisFrame) {
+  xrayMemory.framesDrawn += 1;
+  xrayMemory.updatesRun += updatesThisFrame;
+  recordChanges(stateBeforeUpdate, stateAfterUpdate);
+  if (xrayPanel.hidden) return;
+  showIntents();
+  showChanges();
+  showCollide();
+  showState();
+  showLoop(updatesThisFrame);
+}
+
+// The X-ray listens to the keyboard on its own, separate from INPUT, so
+// that section stays about the game and never has to mention this panel.
+function onXrayKeyDown(event) {
+  if (event.key.toLowerCase() !== 'x') return;
+  if (event.repeat) return;
+  xrayPanel.hidden = !xrayPanel.hidden;
+  try {
+    localStorage.setItem(xrayStorageKey, xrayPanel.hidden ? 'false' : 'true');
+  } catch (error) {
+    // No storage, no memory of it next time. The game still works either way.
+  }
+}
+
+// Read once at load, in a try/catch, the same shape SAVE uses, because
+// storage can be missing, full, or blocked by school policy.
+function restoreXrayOpenState() {
+  try {
+    const wasOpen = localStorage.getItem(xrayStorageKey);
+    xrayPanel.hidden = wasOpen !== 'true';
+  } catch (error) {
+    xrayPanel.hidden = true;
+  }
+}
+
+buildIntentsList();
+restoreXrayOpenState();
+window.addEventListener('keydown', onXrayKeyDown);
 
 </script>
 </body>
