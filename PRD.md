@@ -2,7 +2,7 @@
 
 **An open-world adventure game built to be read, not played.**
 
-Status: v1 spec, ready to build · Written 2026-09-01
+Status: v1.1 · P1 built and merged 2026-09-01 · X-RAY amendment added 2026-09-02 (§4a, §5a, §8)
 
 ---
 
@@ -112,6 +112,37 @@ Exactly these ten sections, **in this order**, each opening with a banner commen
 Sections are numbered in their banners and in `TEARDOWN.md`, and the numbers match. Do not reorder
 them for elegance.
 
+### 4a. Amendment (v1.1) — the optional eleventh section, `11 · X-RAY`
+
+Added after P1 shipped, at the maintainer's request: a curious student should be able to **see the
+inner piping while the game is being played**, not only by reading the source. The X-ray is a side
+panel, opened with the **X** key, that shows the file's one sentence happening live:
+
+```
+keyboard --> INPUT --> intents --> UPDATE --> state --> RENDER --> screen
+```
+
+Rules, so it stays a window onto the game and never becomes part of it:
+
+- It is **section 11**, appended **after** `10 · BOOT`, with the same banner form. Sections 1–10
+  keep their numbers, order and contents. "Start at the bottom, `10 · BOOT`" still holds: the
+  banner of 11 says it is optional and where the game itself ends.
+- It **only reads** `state` and `intents` and the pure lookups in DATA/COLLIDE/RENDER
+  (`tileAt`, `canWalkTo`, `computeCamera`, ...). It writes words into a DOM `<aside>`, never the
+  canvas, never `state`, never `intents`. The render-purity assertion runs before it every frame.
+- It keeps **one** small object of its own memory (frame counts and the recent-changes log),
+  named in STATE's comment as the third and last thing outside `state` that changes at runtime.
+  Never saved, never drawn on the canvas.
+- Its only hook into the game is **three lines in LOOP**: a snapshot of `state` before UPDATE runs,
+  a counter of updates this frame, and one call after the purity check. The "what changed" log is
+  a diff of that snapshot against the one the purity check already takes, so UPDATE itself is not
+  instrumented at all — that is the teaching payload: *the same snapshot that proves RENDER
+  changed nothing shows you exactly what UPDATE did change.*
+- It listens for the X key with its own `keydown` handler so INPUT stays about the game.
+- **Delete section 11 and the `<aside>` and the game is exactly the same.** Every X-ray constant
+  lives inside section 11 for that reason, including its localStorage key.
+- All of §3's style rules apply to it unchanged. The file's target stays 1,200–1,800 lines.
+
 ---
 
 ## 5. Scope — what the game actually is
@@ -129,8 +160,19 @@ them for elegance.
   bridge. That's the whole quest system and it is enough to show how state gates a world.
 - **Save/load** to `localStorage`, plus a visible "saved" indicator.
 
+**P1.5 — X-RAY (v1.1, built after P1 merged).** The panel shows, top to bottom in the order of
+the arrow: every field of `intents` with the held ones lit; a log of the last fourteen changes to
+`state` (field, old value, new value, tagged with the update number; the two per-step clocks
+`stepCooldown` and `notice.secondsLeft` are skipped so they don't flood it); a COLLIDE probe of
+the tile the player faces (character, legend name, walkable?, who is standing there, where a door
+leads, and the bridge's flag-dependent rule when facing it); the whole `state` object pretty-
+printed; and a LOOP line with frames drawn, updates run, the camera tile, and the purity check.
+Whether the panel was open survives a reload so the edit → save → F5 loop keeps it open. Nothing
+else: no pause, no step, no time travel — those are P2 candidates, listed below, not P1.5.
+
 **P2. Do not build until P1 ships and the maintainer has read it.**
-Combat (one enemy type, contact damage, health). Sound. A day/night tint. A minimap.
+Combat (one enemy type, contact damage, health). Sound. A day/night tint. A minimap. For the
+X-ray: a pause key and a single-step key so a student can watch one tick at a time.
 
 **Explicit non-goals.** Pretty art. Sound in P1. Mobile or touch. Multiplayer. Performance work of
 any kind. A framework. A test suite as a deliverable. Procedural generation — the map is hand-typed
@@ -192,6 +234,12 @@ Mechanically checkable — run these before calling it done:
 - [ ] The render-purity dev assertion is present and passing.
 - [ ] Full playthrough (3 quests, both maps, save, reload, verify) completes in under 5 minutes.
 - [ ] All four deliverables present; `TEARDOWN.md` line ranges match the actual file.
+- [ ] (v1.1) X pressed in the game shows the panel; X again hides it; the choice survives F5.
+- [ ] (v1.1) No assignment to `state.` or `intents.` anywhere inside section `11 · X-RAY`.
+- [ ] (v1.1) Deleting section 11 and the `<aside>` leaves a game that opens with zero console
+      errors and plays through — the X-ray is removable by construction.
+- [ ] (v1.1) `node tools/check.mjs`, `node tools/playthrough.mjs` and `node tools/check-doc-lines.mjs`
+      all exit 0. These are maintainer tools, not student deliverables.
 
 Judged by a human, not the agent:
 
