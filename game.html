@@ -83,8 +83,9 @@
 <canvas id="gameCanvas"></canvas>
 <p>
   Arrow keys or WASD to walk. Space to talk and to pick a dialogue choice.
-  K saves, L loads, N starts over. X opens the X-ray. Open this file in a
-  text editor to see how it works.
+  K saves, L loads, N starts over. X opens the X-ray. Inside the X-ray, P
+  pauses and . runs one tick. Open this file in a text editor to see how it
+  works.
 </p>
 </main>
 <!-- The X-ray: a window onto the pipe. Hidden until you press X. Filled in by
@@ -496,7 +497,8 @@ function findNpcById(npcId) {
 // Only three other things in the file change at runtime, and none is
 // game knowledge: `intents` in INPUT (a mailbox from the keyboard), the
 // stopwatch inside LOOP (how much time has passed), and `xrayMemory` in
-// the optional X-RAY section. None of the three is saved or drawn.
+// the optional X-RAY section (its counters, log and pause switch). None
+// of the three is saved or drawn.
 const state = {
   // Which entry in `maps` we are standing in.
   currentMap: 'overworld',
@@ -1150,6 +1152,8 @@ function frame(nowInMs) {
   if (elapsedSeconds > maxFrameGapInSeconds) elapsedSeconds = maxFrameGapInSeconds;
   lastFrameTimeInMs = nowInMs;
   unsimulatedSeconds += elapsedSeconds;
+  // Ask the X-ray whether to spend this frame's time normally, or not at all.
+  unsimulatedSeconds = xrayStopwatchWhilePaused(unsimulatedSeconds);
   // A text snapshot of state before UPDATE runs. X-RAY compares it with the
   // snapshot taken before RENDER to show exactly which fields UPDATE changed.
   const stateBeforeUpdate = JSON.stringify(state);
@@ -1295,7 +1299,7 @@ requestAnimationFrame(frame);
    What to look for: everything here only READS state and
    intents and writes words into the side panel. Press X in
    the game to open it. Delete this section, the <aside> at
-   the top, and the three LOOP lines that call it: same game.
+   the top, and the four LOOP lines that call it: same game.
    ============================================================ */
 
 // The panel and its five inner elements. Looked up once, at load, exactly
@@ -1320,7 +1324,18 @@ const xrayMemory = {
   framesDrawn: 0,
   updatesRun: 0,
   recentChanges: [],
+  paused: false,
+  stepRequested: false,
 };
+
+// Paused frames discard their time instead of banking it, so resuming never
+// fires a burst of catch-up updates; a step hands the loop exactly one slice,
+// then goes quiet again.
+function xrayStopwatchWhilePaused(unsimulatedSecondsSoFar) {
+  if (!xrayMemory.paused) return unsimulatedSecondsSoFar;
+  if (xrayMemory.stepRequested) return fixedStepInSeconds;
+  return 0;
+}
 
 // How many change lines the panel remembers. Older ones fall off the end.
 const xrayChangesToKeep = 14;
@@ -1446,6 +1461,10 @@ function showLoop(updatesThisFrame) {
   text += 'updates run:  ' + xrayMemory.updatesRun +
     '   (this frame: ' + updatesThisFrame + ')\n';
   text += 'camera: top-left tile (' + camera.tileX + ', ' + camera.tileY + ')\n';
+  const clockText = xrayMemory.paused ?
+    'clock: PAUSED   (. runs one update, P resumes)' :
+    'clock: running   (P pauses)';
+  text += clockText + '\n';
   text += 'render purity: checked ✓  (the game halts if RENDER ever writes state)';
   xrayLoopText.textContent = text;
 }
@@ -1458,6 +1477,7 @@ function showXray(stateBeforeUpdate, stateAfterUpdate, updatesThisFrame) {
   xrayMemory.framesDrawn += 1;
   xrayMemory.updatesRun += updatesThisFrame;
   recordChanges(stateBeforeUpdate, stateAfterUpdate);
+  xrayMemory.stepRequested = false;
   if (xrayPanel.hidden) return;
   showIntents();
   showChanges();
@@ -1466,17 +1486,44 @@ function showXray(stateBeforeUpdate, stateAfterUpdate, updatesThisFrame) {
   showLoop(updatesThisFrame);
 }
 
-// The X-ray listens to the keyboard on its own, separate from INPUT, so
-// that section stays about the game and never has to mention this panel.
-function onXrayKeyDown(event) {
-  if (event.key.toLowerCase() !== 'x') return;
-  if (event.repeat) return;
+// Hiding the panel also clears pause and step, so a game a student left
+// paused can never sit frozen with no panel open to explain why.
+function toggleXrayPanel() {
   xrayPanel.hidden = !xrayPanel.hidden;
+  if (xrayPanel.hidden) {
+    xrayMemory.paused = false;
+    xrayMemory.stepRequested = false;
+  }
   try {
     localStorage.setItem(xrayStorageKey, xrayPanel.hidden ? 'false' : 'true');
   } catch (error) {
     // No storage, no memory of it next time. The game still works either way.
   }
+}
+
+// Only works while the panel is open, so a paused game always has the panel
+// there to say so.
+function togglePause() {
+  if (xrayPanel.hidden) return;
+  xrayMemory.paused = !xrayMemory.paused;
+  xrayMemory.stepRequested = false;
+}
+
+// Only works while already paused, so this can never become a second way to
+// advance time when the game is running normally.
+function requestOneStep() {
+  if (xrayPanel.hidden || !xrayMemory.paused) return;
+  xrayMemory.stepRequested = true;
+}
+
+// The X-ray listens to the keyboard on its own, separate from INPUT, so
+// that section stays about the game and never has to mention this panel.
+function onXrayKeyDown(event) {
+  if (event.repeat) return;
+  const key = event.key.toLowerCase();
+  if (key === 'x') toggleXrayPanel();
+  if (key === 'p') togglePause();
+  if (key === '.') requestOneStep();
 }
 
 // Read once at load, in a try/catch, the same shape SAVE uses, because

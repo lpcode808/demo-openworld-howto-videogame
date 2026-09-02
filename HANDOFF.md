@@ -37,3 +37,21 @@ elsewhere. Desktop agents read the newest entry after syncing.
   `TEARDOWN.md` tells students to search by function name if numbers drift.
 - Routing: → maintainer reads `game.html` as a 15-year-old would (PRD §9 "stop at P1"), and tests
   once in Edge on a managed device.
+
+### 2026-09-02-0851 — X-RAY merged to main; pause/step (v1.2) built and pushed — Claude Code
+- Merged `claude/fable-orchestrator-agent-ui-05vwd5` (PRD §4a/§5a v1.1: the `11 · X-RAY` side
+  panel, opened with X, a live window onto `keyboard → INPUT → intents → UPDATE → state →
+  RENDER → screen`) into `main` as PR #3, after fixing 55 stale line citations in `TEARDOWN.md`/
+  `CHANGE-ME.md` that the new section had left pointing at the wrong code.
+- Built v1.2 on top: P pauses (RENDER and the panel keep running; the fixed-timestep accumulator
+  discards time instead of banking it, so resuming never bursts catch-up updates), `.` runs
+  exactly one UPDATE tick while paused. Neither persists — only whether the panel is open still
+  does. Section 11 stays deletable by construction (now four LOOP lines, not three).
+- Used a Fable-model agent as spec-writer and judge, and a Haiku-model agent as implementer, with
+  every round independently re-verified here against `tools/check.mjs`, `tools/check-doc-lines.mjs`,
+  and the headless `tools/playthrough.mjs` before anything was committed.
+- Landed on `claude/upbeat-mendel-9lir10`, one commit ahead of `main`; not yet merged as of this
+  entry (the user asked for this handoff first, merge next). Not tested in real Edge/Chrome by a
+  human, and P2 (combat, sound, day/night, minimap) is still untouched — P1.5/v1.2 only.
+- Routing: → merge `claude/upbeat-mendel-9lir10` into `main` (in progress), then a fresh session
+  can pick up wherever the maintainer points it next — nothing else is pending.
