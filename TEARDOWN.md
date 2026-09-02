@@ -1,14 +1,15 @@
 # TEARDOWN — six reads through `game.html`
 
 You are going to read a video game. Not play it: read it. `game.html` is one file, about
-1,200 lines, and it is the whole game. Nothing is hidden in another file or downloaded from
+1,500 lines, and it is the whole game. Nothing is hidden in another file or downloaded from
 the internet.
 
 Each read below takes 10–15 minutes and stands on its own. Every read has the same shape:
 
 1. **What you're looking for** — one sentence.
 2. **Where it lives** — the section number and the line range. Section numbers match the
-   banner comments in the file (`1 · CONFIG`, `2 · DATA`, ... `10 · BOOT`).
+   banner comments in the file (`1 · CONFIG`, `2 · DATA`, ... `10 · BOOT`, plus an
+   optional `11 · X-RAY`).
 3. **A question** you can answer from the code alone. Answers are at the bottom of this file.
 4. **Break it on purpose** — one edit, the exact line, and what you should see.
 
@@ -21,6 +22,13 @@ Each read below takes 10–15 minutes and stands on its own. Every read has the 
 - After any edit: save the file, go to the game tab, press **F5** to reload. There is no build
   step. If a change doesn't seem to show up, press **N** in the game first — a saved game can
   hide a change to the starting position.
+- The game has an **x-ray**. Press **X** and a panel opens beside it, showing the arrow below
+  happening live: which keys are held right now, what the rules just changed in `state`, what
+  the tile in front of you is, and the whole of `state`, updating sixty times a second. Leave it
+  open for every read in this guide — it is the fastest way to check whether you read something
+  correctly. Inside it, **P** freezes the world (the drawing keeps going) and **.** runs exactly
+  one update, so you can watch a single tick happen. The x-ray is section 11 of the file. It is
+  optional: delete it and the game is unchanged.
 - Line numbers below are exact for the version of the file shipped with this guide. If you
   have edited the file, they will drift; search for the function name instead.
 
@@ -141,6 +149,11 @@ cooldown is what makes a held key a steady walk.
 Notice also that `update` checks `state.dialogue`. While a speech box is open, the same arrow
 keys mean "move the highlight" and Space means "pick", so a different function runs.
 
+Now check yourself against the running game. Press **X**, then hold the right arrow. The top
+box of the panel is `intents`, with `moveRight` lit while your finger is down. The box under it
+lists what UPDATE changed on that tick — `player.tileX` among them. That is this read's whole
+chain, in two boxes. Press **P** to freeze it and **.** to walk one update at a time.
+
 **Question 4:** Hold the right arrow. List, in order, every function that runs between the key
 going down and `state.player.tileX` changing. There are six or seven.
 
@@ -199,6 +212,12 @@ player is, and a bug in the rules can never be hidden by the drawing.
 Now look at how the file enforces it. Line 1166 turns `state` into a string before drawing. Line
 1168 calls `assertRenderChangedNothing` (1130–1136), which turns `state` into a string again and
 compares. If they differ, the game throws an error and stops. It is a promise with an alarm on it.
+
+The x-ray is built on that same pair of strings. Line 1159 takes a snapshot before UPDATE runs;
+line 1166 takes the one the purity check uses. The panel's "what changed in state" list is
+simply those two compared. Nothing inside UPDATE is instrumented — the snapshot that proves
+RENDER changed nothing is also the record of what UPDATE did change. That is spelled out in
+`§11 X-RAY, lines 1297–1543`.
 
 **Question 6:** Find the line in RENDER that decides whether the bridge is drawn as water or as
 planks. Does that line *change* anything? If not, which line, in which section, made the bridge

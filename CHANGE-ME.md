@@ -6,6 +6,9 @@ NPC on a wall, the checks in §10 BOOT (`checkMapRowsAreEqualLength`, `checkThin
 will stop the game and name your mistake. After any edit, save the file and press F5 — no build
 step — and press N in the game if an old save is hiding your change.
 
+Press **X** while you work. The x-ray panel shows `state` live, so when a change doesn't seem to
+do anything you can see whether the value you edited actually moved, instead of guessing.
+
 ## 1. Change a number in CONFIG
 
 **Do:** Change how many steps per second the player takes while a key is held.
@@ -87,7 +90,7 @@ items, not just one.
 
 **Do:** Right now, nothing happens when all three quest flags are true — the HUD just shows
 three `[x]` marks. Make something happen at that moment.
-**Where:** §3 STATE, lines 512–526 (`state.flags`)
+**Where:** §3 STATE, lines 521–526 (`state.flags`)
 **Where:** §2 DATA, lines 347–351 (`quests`)
 **Where:** §5 UPDATE, lines 628–639 (`update`)
 **Where:** §7 RENDER, lines 1021–1062 (`drawHud`)
