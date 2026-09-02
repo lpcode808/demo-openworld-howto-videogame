@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Open World How-To</title>
+<style>
+  /* The page is a dark frame around one canvas. Everything you see in the
+     game is drawn onto that canvas by the JavaScript below. */
+  body {
+    margin: 0;
+    background: #101018;
+    color: #ddd;
+    font-family: monospace;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  canvas {
+    margin-top: 16px;
+    background: #000;
+    image-rendering: pixelated;
+  }
+  p {
+    max-width: 640px;
+    font-size: 13px;
+    color: #888;
+  }
+</style>
+</head>
+<body>
+<canvas id="gameCanvas"></canvas>
+<p>
+  Arrow keys or WASD to walk. Space to talk and to pick a dialogue choice.
+  K saves, L loads, N starts over. Open this file in a text editor to see how it works.
+</p>
+<script>
+'use strict';
+
+/* ============================================================
+   1 · CONFIG — every number you might want to change
+   What to look for: nothing further down the file is a bare
+   number. Speed, sizes, colors and timings all live here, so
+   changing how the game feels never means hunting through logic.
+   ============================================================ */
+
+
+/* ============================================================
+   2 · DATA — the world, written out as plain data
+   What to look for: the map is a list of strings you can edit by
+   typing. Items, characters, dialogue and quests are tables. None
+   of this section runs; it is just facts the rest of the file reads.
+   ============================================================ */
+
+
+/* ============================================================
+   3 · STATE — the one object that remembers everything
+   What to look for: there is exactly one `state`. If the game
+   "knows" something (where you are, what you carry, what you've
+   done), it is a field in here. Nowhere else.
+   ============================================================ */
+
+
+/* ============================================================
+   4 · INPUT — keyboard events become intents
+   What to look for: this section never moves the player. It only
+   records what the player is asking for. UPDATE decides whether
+   to grant it.
+   ============================================================ */
+
+
+/* ============================================================
+   5 · UPDATE — the rules of the world
+   What to look for: this is the only place the world changes.
+   Every function here reads intents and writes state, and does
+   nothing else. If you want the game to behave differently,
+   you change something in this section.
+   ============================================================ */
+
+
+/* ============================================================
+   6 · COLLIDE — what can you walk on, and where does it lead
+   What to look for: tile lookups, the walkability rule, and doors
+   between areas. Kept apart from UPDATE so you can read "why can't
+   I walk through a tree?" on its own.
+   ============================================================ */
+
+
+/* ============================================================
+   7 · RENDER — reads state, draws pixels, changes nothing
+   What to look for: not one line in this section assigns to
+   `state`. Drawing is a pure read. The loop checks that promise
+   every frame (see the end of this section).
+   ============================================================ */
+
+
+/* ============================================================
+   8 · LOOP — the heartbeat
+   What to look for: the browser calls `frame` about sixty times a
+   second. Each call catches the simulation up in fixed steps, then
+   draws once. This is the most important dozen lines in the file.
+   ============================================================ */
+
+
+/* ============================================================
+   9 · SAVE — remembering between visits
+   What to look for: the whole save is `state` turned into text and
+   stored in the browser. Loading is the reverse. Both are wrapped
+   in try/catch because storage can be missing or full.
+   ============================================================ */
+
+
+/* ============================================================
+   10 · BOOT — wire it up and start
+   What to look for: this is where the program begins. It sizes
+   the canvas, listens for keys, tries to load a save, and asks
+   the browser for the first frame. Everything after that is LOOP.
+   ============================================================ */
+
+</script>
+</body>
+</html>
