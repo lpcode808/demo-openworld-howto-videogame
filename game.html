@@ -18,7 +18,6 @@
   canvas {
     margin-top: 16px;
     background: #000;
-    image-rendering: pixelated;
   }
   p {
     max-width: 640px;
@@ -35,6 +34,29 @@
 </p>
 <script>
 'use strict';
+
+/* ------------------------------------------------------------
+   HOW TO READ THIS FILE
+
+   This is a whole open-world game in one file, written to be read.
+   It is split into ten numbered sections. Each one opens with a
+   banner like the one just below, and each banner says what to
+   look for. Read them in order the first time; after that, jump.
+
+     1 CONFIG   the numbers            6 COLLIDE  what blocks you
+     2 DATA     the world as text      7 RENDER   state -> pixels
+     3 STATE    what the game knows    8 LOOP     the heartbeat
+     4 INPUT    keys -> intents        9 SAVE     state -> storage
+     5 UPDATE   intents -> state      10 BOOT     start here
+
+   The whole game is one sentence, repeated sixty times a second:
+
+     keyboard --> INPUT --> intents --> UPDATE --> state --> RENDER --> screen
+
+   Only UPDATE (and SAVE, when loading) may change `state`.
+   RENDER may only read it, and the LOOP checks that every frame.
+   If you remember nothing else, remember that arrow.
+   ------------------------------------------------------------ */
 
 /* ============================================================
    1 · CONFIG — every number you might want to change
@@ -106,6 +128,33 @@ const fonts = {
   notice: 'bold 18px monospace',
 };
 
+// Pixel measurements RENDER uses to place things. Kept here, named, so the
+// drawing code below reads as shapes and not as a pile of numbers.
+const layout = {
+  // People and the player are squares slightly smaller than their tile.
+  entityInset: 4,
+  // Items are smaller still, so they look like something lying on the ground.
+  itemInset: 9,
+  // The player's "eye": how big, and how far from the centre toward the facing.
+  eyeSize: 6,
+  eyeDistance: 9,
+  // The dark circle on a tree, and the dark inset on a door.
+  treeTopRadius: 10,
+  doorInsetSide: 8,
+  doorInsetTop: 6,
+  // The HUD panel: left text column, quest column, and spacing between rows.
+  hudTextX: 12,
+  hudQuestColumnX: 350,
+  hudLineHeight: 24,
+  // The speech box.
+  dialogueMargin: 8,
+  dialogueTextX: 24,
+  dialogueLineHeight: 22,
+  // The notice banner at the top.
+  noticeWidth: 360,
+  noticeHeight: 34,
+};
+
 
 /* ============================================================
    2 · DATA — the world, written out as plain data
@@ -132,6 +181,10 @@ const tileTypes = {
 
 // Two maps make a world. Each one is just a list of equal-length strings.
 // Row 0 is the top of the map; character 0 of a row is its left edge.
+//
+// To edit the world, edit the text. Swap a '.' for a 'T' and a tree
+// appears. Every row of a map must be the same length; BOOT checks this
+// when the page opens and tells you which row is wrong if one is.
 const maps = {
   overworld: {
     title: 'Riverside',
@@ -446,18 +499,25 @@ function setMovementIntent(key, isDown) {
   if (key === 'arrowright' || key === 'd') intents.moveRight = isDown;
 }
 
+// Every key the game listens to, in lower case.
+const keysTheGameUses = [
+  'arrowup', 'arrowdown', 'arrowleft', 'arrowright',
+  'w', 'a', 's', 'd',
+  ' ', 'k', 'l', 'n',
+];
+
 function onKeyDown(event) {
   // Lower-case so Shift+W still counts as W.
   const key = event.key.toLowerCase();
-  const isGameKey = key.startsWith('arrow') || key === ' ' || 'wasdkln'.includes(key);
-  if (isGameKey) {
+  if (keysTheGameUses.includes(key)) {
     // Stop arrows and Space from scrolling the page underneath the game.
     event.preventDefault();
   }
-  // Holding a key makes the browser fire keydown over and over. Movement
-  // is handled by keyup anyway, and a held Space must not repeat, so we
-  // record the movement and ignore everything else about a repeat.
   setMovementIntent(key, true);
+
+  // Holding a key down makes the browser fire keydown again and again.
+  // That is harmless for movement (moveUp just becomes true again) but a
+  // held Space must not "talk" sixty times, so repeats stop here.
   if (event.repeat) return;
 
   if (key === ' ') intents.interactPressed = true;
@@ -735,6 +795,12 @@ function canWalkTo(mapName, tileX, tileY) {
 const canvas = document.getElementById('gameCanvas');
 const context = canvas.getContext('2d');
 
+// Three kinds of position show up in this section. Keep them apart:
+//   map tiles    where something is in the world      (npc.tileX)
+//   screen tiles map tile minus the camera's tile     (tileX - camera.tileX)
+//   pixels       screen tile times tileSizeInPixels   (what fillRect wants)
+// Every draw function does that same two-step conversion.
+
 // The camera is the top-left tile of the map that appears in the viewport.
 // It follows the player and stops at the map edges so you never see past
 // them. This function only calculates; it does not store anything.
@@ -815,12 +881,15 @@ function drawTileDetail(tileCharacter, pixelX, pixelY) {
   if (tileCharacter === 'T') {
     context.fillStyle = colors.treeTop;
     context.beginPath();
-    context.arc(pixelX + half, pixelY + half, half * 0.6, 0, Math.PI * 2);
+    context.arc(pixelX + half, pixelY + half, layout.treeTopRadius, 0, Math.PI * 2);
     context.fill();
   }
   if (tileCharacter === 'D' || tileCharacter === 'X') {
+    const side = layout.doorInsetSide;
+    const top = layout.doorInsetTop;
     context.fillStyle = colors.doorInner;
-    context.fillRect(pixelX + 8, pixelY + 6, tileSizeInPixels - 16, tileSizeInPixels - 6);
+    context.fillRect(pixelX + side, pixelY + top,
+      tileSizeInPixels - side * 2, tileSizeInPixels - top);
   }
 }
 
@@ -832,8 +901,10 @@ function drawItems(camera) {
     if (state.pickedUpItems[item.id]) continue;
     const pixelX = (item.tileX - camera.tileX) * tileSizeInPixels;
     const pixelY = (item.tileY - camera.tileY) * tileSizeInPixels;
+    const inset = layout.itemInset;
     context.fillStyle = item.color;
-    context.fillRect(pixelX + 9, pixelY + 9, tileSizeInPixels - 18, tileSizeInPixels - 18);
+    context.fillRect(pixelX + inset, pixelY + inset, tileSizeInPixels - inset * 2,
+      tileSizeInPixels - inset * 2);
   }
 }
 
@@ -843,12 +914,14 @@ function drawNpcs(camera) {
     if (npc.map !== state.currentMap) continue;
     const pixelX = (npc.tileX - camera.tileX) * tileSizeInPixels;
     const pixelY = (npc.tileY - camera.tileY) * tileSizeInPixels;
+    const inset = layout.entityInset;
     context.fillStyle = npc.color;
-    context.fillRect(pixelX + 4, pixelY + 4, tileSizeInPixels - 8, tileSizeInPixels - 8);
+    context.fillRect(pixelX + inset, pixelY + inset, tileSizeInPixels - inset * 2,
+      tileSizeInPixels - inset * 2);
     context.fillStyle = colors.hudText;
     context.font = fonts.small;
     context.textAlign = 'center';
-    context.fillText(npc.name, pixelX + tileSizeInPixels / 2, pixelY - 3);
+    context.fillText(npc.name, pixelX + tileSizeInPixels / 2, pixelY - layout.entityInset);
   }
 }
 
@@ -858,26 +931,33 @@ function drawPlayer(camera) {
   const player = state.player;
   const pixelX = (player.tileX - camera.tileX) * tileSizeInPixels;
   const pixelY = (player.tileY - camera.tileY) * tileSizeInPixels;
+  const inset = layout.entityInset;
   context.fillStyle = colors.player;
-  context.fillRect(pixelX + 4, pixelY + 4, tileSizeInPixels - 8, tileSizeInPixels - 8);
+  context.fillRect(pixelX + inset, pixelY + inset, tileSizeInPixels - inset * 2,
+    tileSizeInPixels - inset * 2);
 
+  // The eye sits between the centre and the facing edge.
   const offset = directionOffsets[player.facing];
-  const eyeX = pixelX + tileSizeInPixels / 2 + offset.dx * 9 - 3;
-  const eyeY = pixelY + tileSizeInPixels / 2 + offset.dy * 9 - 3;
+  const centreX = pixelX + tileSizeInPixels / 2;
+  const centreY = pixelY + tileSizeInPixels / 2;
+  const eyeX = centreX + offset.dx * layout.eyeDistance - layout.eyeSize / 2;
+  const eyeY = centreY + offset.dy * layout.eyeDistance - layout.eyeSize / 2;
   context.fillStyle = colors.playerEye;
-  context.fillRect(eyeX, eyeY, 6, 6);
+  context.fillRect(eyeX, eyeY, layout.eyeSize, layout.eyeSize);
 }
 
 // The panel under the world: where you are, what you carry, and the quests.
 function drawHud() {
   const top = viewportHeightInTiles * tileSizeInPixels;
+  const textX = layout.hudTextX;
+  const lineHeight = layout.hudLineHeight;
   context.fillStyle = colors.hudBackground;
   context.fillRect(0, top, canvas.width, hudHeightInPixels);
   context.textAlign = 'left';
   context.font = fonts.hud;
 
   context.fillStyle = colors.hudText;
-  context.fillText('Place: ' + maps[state.currentMap].title, 12, top + 24);
+  context.fillText('Place: ' + maps[state.currentMap].title, textX, top + lineHeight);
 
   let bagText = '(empty)';
   if (state.inventory.length > 0) {
@@ -887,11 +967,12 @@ function drawHud() {
     }
     bagText = names.join(', ');
   }
-  context.fillText('Bag: ' + bagText, 12, top + 48);
+  context.fillText('Bag: ' + bagText, textX, top + lineHeight * 2);
 
   context.fillStyle = colors.hudDim;
   context.font = fonts.small;
-  context.fillText('Arrows/WASD move · Space talk · K save · L load · N new game', 12, top + 82);
+  const helpText = 'Arrows/WASD move · Space talk · K save · L load · N new game';
+  context.fillText(helpText, textX, top + hudHeightInPixels - lineHeight / 2);
 
   context.font = fonts.hud;
   for (let index = 0; index < quests.length; index++) {
@@ -902,7 +983,8 @@ function drawHud() {
       mark = '[x] ';
       context.fillStyle = colors.questDone;
     }
-    context.fillText(mark + quest.title, 380, top + 24 + index * 24);
+    const lineY = top + lineHeight * (index + 1);
+    context.fillText(mark + quest.title, layout.hudQuestColumnX, lineY);
   }
 }
 
@@ -910,35 +992,48 @@ function drawHud() {
 function drawDialogueBox() {
   const npc = findNpcById(state.dialogue.npcId);
   const node = npc.dialogue[state.dialogue.nodeKey];
-  const boxHeight = 60 + (node.lines.length + node.choices.length) * 22;
-  const boxTop = viewportHeightInTiles * tileSizeInPixels - boxHeight - 8;
-  context.fillStyle = colors.dialogueBox;
-  context.fillRect(8, boxTop, canvas.width - 16, boxHeight);
-  context.textAlign = 'left';
+  const margin = layout.dialogueMargin;
+  const textX = layout.dialogueTextX;
+  const lineHeight = layout.dialogueLineHeight;
 
+  // The box grows to fit: a name line, the text lines, the choices (or the
+  // "continue" hint), plus a line's worth of breathing room.
+  const lineCount = 1 + node.lines.length + Math.max(1, node.choices.length);
+  const boxHeight = (lineCount + 1) * lineHeight;
+  const boxTop = viewportHeightInTiles * tileSizeInPixels - boxHeight - margin;
+  context.fillStyle = colors.dialogueBox;
+  context.fillRect(margin, boxTop, canvas.width - margin * 2, boxHeight);
+  context.textAlign = 'left';
   context.font = fonts.dialogue;
+
   context.fillStyle = colors.dialogueName;
-  context.fillText(npc.name, 24, boxTop + 26);
+  let lineY = boxTop + lineHeight * 1.2;
+  context.fillText(npc.name, textX, lineY);
 
   context.fillStyle = colors.dialogueText;
-  for (let index = 0; index < node.lines.length; index++) {
-    context.fillText(node.lines[index], 24, boxTop + 52 + index * 22);
+  for (const line of node.lines) {
+    lineY += lineHeight;
+    context.fillText(line, textX, lineY);
   }
+  drawDialogueChoices(node, textX, lineY + lineHeight);
+}
 
-  const choicesTop = boxTop + 52 + node.lines.length * 22;
+// The choices under the speech text, with a ">" beside the highlighted one.
+function drawDialogueChoices(node, textX, firstLineY) {
   if (node.choices.length === 0) {
     context.fillStyle = colors.dialogueChoice;
-    context.fillText('(Space to continue)', 24, choicesTop);
+    context.fillText('(Space to continue)', textX, firstLineY);
     return;
   }
   for (let index = 0; index < node.choices.length; index++) {
+    const lineY = firstLineY + index * layout.dialogueLineHeight;
     let marker = '   ';
     context.fillStyle = colors.dialogueChoice;
     if (index === state.dialogue.choiceIndex) {
       marker = ' > ';
       context.fillStyle = colors.dialogueChoiceSelected;
     }
-    context.fillText(marker + node.choices[index].label, 24, choicesTop + index * 22);
+    context.fillText(marker + node.choices[index].label, textX, lineY);
   }
 }
 
@@ -946,12 +1041,16 @@ function drawDialogueBox() {
 // timer that UPDATE counts down reaches zero.
 function drawNotice() {
   if (state.notice.secondsLeft <= 0) return;
+  const centreX = canvas.width / 2;
+  const boxTop = layout.dialogueMargin;
   context.font = fonts.notice;
   context.textAlign = 'center';
   context.fillStyle = colors.dialogueBox;
-  context.fillRect(canvas.width / 2 - 180, 10, 360, 34);
+  context.fillRect(centreX - layout.noticeWidth / 2, boxTop, layout.noticeWidth,
+    layout.noticeHeight);
   context.fillStyle = colors.notice;
-  context.fillText(state.notice.text, canvas.width / 2, 34);
+  // Text is drawn from its baseline, so nudge it down inside the box.
+  context.fillText(state.notice.text, centreX, boxTop + layout.noticeHeight * 0.7);
 }
 
 // THE PROMISE, ENFORCED. LOOP takes a text snapshot of `state` before
@@ -1059,6 +1158,48 @@ function deleteSave() {
    the canvas, listens for keys, tries to load a save, and asks
    the browser for the first frame. Everything after that is LOOP.
    ============================================================ */
+
+// Two checks on the DATA section, run once before anything moves. They
+// exist for the moment you edit a map or add an NPC and mistype something:
+// instead of a silent glitch you get an error that names the mistake.
+function checkMapRowsAreEqualLength() {
+  for (const mapName in maps) {
+    const rows = maps[mapName].rows;
+    for (let rowIndex = 0; rowIndex < rows.length; rowIndex++) {
+      if (rows[rowIndex].length !== rows[0].length) {
+        throw new Error('Map "' + mapName + '" row ' + rowIndex + ' is ' +
+          rows[rowIndex].length + ' characters long but row 0 is ' + rows[0].length);
+      }
+      for (const tileCharacter of rows[rowIndex]) {
+        if (tileTypes[tileCharacter] === undefined) {
+          throw new Error('Map "' + mapName + '" row ' + rowIndex +
+            ' uses "' + tileCharacter + '", which is not in tileTypes');
+        }
+      }
+    }
+  }
+}
+
+function checkThingsAreOnRealTiles() {
+  for (const item of items) {
+    if (tileAt(item.map, item.tileX, item.tileY) === '#') {
+      throw new Error('Item "' + item.id + '" is on a wall or off the map');
+    }
+  }
+  for (const npc of npcs) {
+    if (tileAt(npc.map, npc.tileX, npc.tileY) === '#') {
+      throw new Error('NPC "' + npc.id + '" is on a wall or off the map');
+    }
+  }
+  for (const door of doors) {
+    if (maps[door.toMap] === undefined) {
+      throw new Error('A door leads to "' + door.toMap + '", which is not in maps');
+    }
+  }
+}
+
+checkMapRowsAreEqualLength();
+checkThingsAreOnRealTiles();
 
 canvas.width = viewportWidthInTiles * tileSizeInPixels;
 canvas.height = viewportHeightInTiles * tileSizeInPixels + hudHeightInPixels;
