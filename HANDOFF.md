@@ -83,3 +83,55 @@ elsewhere. Desktop agents read the newest entry after syncing.
   page scrolls ~144 px vertically — but that was measured in Chromium, not Edge.
 - Routing: → maintainer opens `game.html` in Edge on a managed device once, then run the student
   test. P2 (combat, sound, day/night, minimap) is still deliberately untouched.
+
+### 2026-09-02-1120 — X-ray v1.3: the panel explains itself, and hands you a prompt — Claude Code
+- The v1.1/v1.2 panel was accurate and terse — five boxes of field names. A student who does not
+  already know the arrow could not learn it from that. v1.3 is an explanation layer on the same
+  readings: no new readings, no new memory, no new hook into the game. PRD gains §4b and six §8
+  criteria.
+- **A live diagram, first in the panel.** Seven rows, one per stage of the arrow, each a marker,
+  the stage's name, and a plain-English detail of what that stage did on this frame. `▶` + lit =
+  it acted; `│` + dim = it sat still, so it reads without colour too. The `3 · state` row keeps
+  showing the last real change between changes — most frames change nothing (a step takes ~9
+  ticks), and a row that only ever said "nothing changed" would hide the thing worth watching.
+- **One grey caption under each heading** saying in words what that box is.
+- **Two buttons, "ask an AI about this exact moment."** They build a prompt out of exactly what
+  the panel is showing and copy it: one asks any chat model to walk the frame stage by stage for
+  a fifteen-year-old, one asks an image model to draw the seven rows as a labelled diagram with
+  the busy stages glowing. `document.execCommand('copy')` after selecting a read-only textarea —
+  the one copy that behaves the same from `file://` in Edge and Chrome; if it is refused the text
+  is still selected for Ctrl+C. Focus is handed back to the page or the next W lands in the box.
+- The buttons sit **second**, under the diagram, not last in arrow order: nobody scrolls a full
+  panel to find them. The panel also scrolls **itself** now (`max-height: calc(100vh - 32px)`),
+  so the game no longer slides off a 1366×650 screen — page scroll went 1300 px → 678 px.
+- Docs got diagrams, per the same complaint: a map of the whole screen with the panel open in
+  "Before you start", a key-to-pixel chain in Read 4 (stages only — Read 4's question asks for
+  the function list, so the diagram must not answer it), and the two-snapshots picture in Read 6.
+  Six reads stayed six; CHANGE-ME stayed ten.
+- **Found and fixed pre-existing doc bugs** while re-checking citations. `check-doc-lines.mjs`
+  only auto-checks structured citations; the prose ones had drifted. Wrong by one: the map row a
+  student is told to edit (`351`→`350`, twice), the `'T'` legend row (`318`→`317`), the `'D'`/`'#'`
+  rows in answer 5 (`321`/`322`→`320`/`321`), `canWalkTo`'s return line (`926`→`927`), and
+  `drawItems`/`pickUpItemUnderPlayer` (`1045`/`795`→`1043`/`793`). Answer 3 also still said "two
+  things outside `state` change" — it has been three since v1.1. Every one of these would have
+  sent a student to the wrong line.
+- 74 lines went in above the script, so every citation in both guides shifted by +74; that was
+  applied mechanically and then verified, not eyeballed.
+- Used a Sonnet-model agent for the `playthrough.mjs` work and re-ran everything here before
+  committing. One thing it got subtly wrong and I changed: it clicked the buttons with in-page
+  `element.click()`, which is not a real user gesture — exactly the thing the clipboard call
+  depends on. The draw-button check now uses a real Playwright click.
+- All four tools exit 0. `check.mjs` PASS (1,798 lines, no line > 100, no banned string, all
+  banners, no `state.` write in RENDER or X-RAY, no function > 40 lines). `playthrough.mjs` PASS,
+  36 checks, 28 s, zero console output, run three times. `check-xray-removable.mjs` PASS — and
+  the stripped game is still **exactly 1,243 lines**, byte-identical to before this session, which
+  is the real proof that all of v1.3 stayed inside section 11 and the `<aside>`.
+- **Budget warning:** `game.html` is 1,798 of §3's 1,800-line target (ceiling 2,000). Anything
+  added to the X-ray from here has to pay for itself by cutting something. §4b says so too.
+- Still not done, and still the reason this is not "shipped": **nobody has opened this in Edge.**
+  No `microsoft-edge` and no `google-chrome` on this VM — only Playwright's Chromium. `file://` +
+  `execCommand('copy')` is the piece most likely to behave differently under a school's managed
+  Edge policy, so that is the thing to check first. P2 (combat, sound, day/night, minimap) is
+  still deliberately untouched.
+- Routing: → maintainer opens `game.html` in Edge on a managed device, presses X, and clicks
+  *copy: explain this frame* to confirm the clipboard works there; then run the student test.
