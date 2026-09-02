@@ -55,3 +55,31 @@ elsewhere. Desktop agents read the newest entry after syncing.
   human, and P2 (combat, sound, day/night, minimap) is still untouched — P1.5/v1.2 only.
 - Routing: → merge `claude/upbeat-mendel-9lir10` into `main` (in progress), then a fresh session
   can pick up wherever the maintainer points it next — nothing else is pending.
+
+### 2026-09-02-0916 — docs teach the X-ray; tooling now verifies it — Claude Code
+- Found the gap that mattered for a user test: the X-ray shipped in v1.1/v1.2, but `TEARDOWN.md`
+  never mentioned it once and `README.md` didn't list X/P/`.`. A student working the guide front
+  to back would never have found the panel. Fixed in `72c0f5d`, docs only — a "Before you start"
+  bullet, a pointer in Read 4 (the panel's intents box and change log *are* that read's chain),
+  a pointer in Read 6 (the change log is a diff of the same two snapshots the purity check
+  compares, which is why UPDATE is never instrumented), a line in the CHANGE-ME intro, and the
+  README keys. Six reads stayed six and CHANGE-ME stayed ten items, per PRD §6/§7. Also
+  corrected CHANGE-ME #10's `state.flags` citation — 512 was the player block's closing brace.
+- PRD §8's v1.1/v1.2 criteria had no tooling behind them. `f2a5904` adds an X-RAY phase to
+  `tools/playthrough.mjs` (toggle, open-state survives F5 while pause does not, P freezes UPDATE
+  while RENDER keeps drawing, no catch-up burst on resume, `.` advances exactly one tick, X while
+  paused hides and resumes, P/`.` inert while hidden) and a new `tools/check-xray-removable.mjs`
+  that strips the `<aside>`, the CSS, section 11 and the four LOOP lines from a copy and proves
+  the stripped 1,243-line game opens clean, walks and still asserts render purity. `tools/README.md`
+  now also documents `check-doc-lines.mjs`, which it never had.
+- `game.html` is untouched this session, so every line citation in the docs still holds. All four
+  tools exit 0; playthrough is 26 s and was run three times consecutively with zero console output.
+- Used Sonnet-model agents for the two tooling jobs and re-verified every result here before
+  committing; the doc writing was done directly.
+- Not done, and the reason this is not "shipped" yet: **no Edge anywhere on this VM** (no
+  `microsoft-edge`, no `google-chrome` either — only Playwright's bundled Chromium), so PRD §3's
+  "must run in Microsoft Edge" is still unproven by anyone. That needs one pass on a managed
+  school laptop. Layout does hold at 1366×650 with the panel open — no horizontal scroll, the
+  page scrolls ~144 px vertically — but that was measured in Chromium, not Edge.
+- Routing: → maintainer opens `game.html` in Edge on a managed device once, then run the student
+  test. P2 (combat, sound, day/night, minimap) is still deliberately untouched.
