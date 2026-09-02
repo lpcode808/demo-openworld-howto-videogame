@@ -43,6 +43,69 @@
    changing how the game feels never means hunting through logic.
    ============================================================ */
 
+// The world is a grid of square tiles. Everything is measured in tiles
+// and converted to pixels only at draw time.
+const tileSizeInPixels = 32;
+const viewportWidthInTiles = 20;
+const viewportHeightInTiles = 15;
+
+// How fast the player walks: steps (tiles) per second while a key is held.
+const playerStepsPerSecond = 7;
+
+// The simulation advances in fixed slices so that a slow or fast computer
+// produces exactly the same game. 1/60 means sixty updates per second.
+const fixedStepInSeconds = 1 / 60;
+
+// If the browser tab was hidden, a huge gap of time can pile up. We never
+// simulate more than this much at once so the game doesn't "fast forward".
+const maxFrameGapInSeconds = 0.25;
+
+// How long the yellow notice ("Saved!", "Picked up ...") stays on screen.
+const noticeDurationInSeconds = 2;
+
+// The strip under the world where the bag and quest list are drawn.
+const hudHeightInPixels = 96;
+
+// The name of the slot in the browser's localStorage that holds the save.
+const saveSlotName = 'open-world-how-to-save';
+
+// When true, every frame checks that RENDER did not change state.
+// It costs a little speed and is worth it: it proves the file's big promise.
+const checkRenderPurity = true;
+
+const colors = {
+  grass: '#5cab4a',
+  path: '#c9b47c',
+  tree: '#2f6b31',
+  treeTop: '#1f4a22',
+  water: '#3a7bd5',
+  bridge: '#9c6b3c',
+  door: '#7a4a1e',
+  doorInner: '#3d2410',
+  wall: '#6d6d7a',
+  floor: '#b08a5a',
+  outsideMap: '#000000',
+  player: '#f2d16b',
+  playerEye: '#222222',
+  hudBackground: '#15151f',
+  hudText: '#eeeeee',
+  hudDim: '#8a8a99',
+  questDone: '#7be07b',
+  notice: '#ffd75e',
+  dialogueBox: 'rgba(10, 10, 20, 0.92)',
+  dialogueName: '#ffd75e',
+  dialogueText: '#ffffff',
+  dialogueChoice: '#bbbbbb',
+  dialogueChoiceSelected: '#ffd75e',
+};
+
+const fonts = {
+  hud: '15px monospace',
+  small: '11px monospace',
+  dialogue: '16px monospace',
+  notice: 'bold 18px monospace',
+};
+
 
 /* ============================================================
    2 · DATA — the world, written out as plain data
@@ -51,6 +114,237 @@
    of this section runs; it is just facts the rest of the file reads.
    ============================================================ */
 
+// Each character in a map string is one tile. This table says what each
+// character means. Add a row here and you can type the new tile into a map.
+// The bridge is listed as NOT walkable: COLLIDE makes an exception for it
+// once the carpenter has fixed it. That one rule is the whole quest system.
+const tileTypes = {
+  '.': { name: 'grass',  color: colors.grass,  walkable: true  },
+  '=': { name: 'path',   color: colors.path,   walkable: true  },
+  'T': { name: 'tree',   color: colors.tree,   walkable: false },
+  '~': { name: 'water',  color: colors.water,  walkable: false },
+  'B': { name: 'bridge', color: colors.water,  walkable: false },
+  'D': { name: 'door',   color: colors.door,   walkable: true  },
+  '#': { name: 'wall',   color: colors.wall,   walkable: false },
+  '_': { name: 'floor',  color: colors.floor,  walkable: true  },
+  'X': { name: 'exit',   color: colors.door,   walkable: true  },
+};
+
+// Two maps make a world. Each one is just a list of equal-length strings.
+// Row 0 is the top of the map; character 0 of a row is its left edge.
+const maps = {
+  overworld: {
+    title: 'Riverside',
+    rows: [
+      'TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT',  // 0
+      'T.........................~~...........T',  // 1
+      'T.........................~~........T..T',  // 2
+      'T....T..~~~~~..TT.........~~..TT.......T',  // 3
+      'T.......~~~~~..T......TT..~~...........T',  // 4
+      'T.......~~~~~.............~~...........T',  // 5
+      'T.......~~~~~.............~~..#######..T',  // 6
+      'T.........................~~..#######..T',  // 7
+      'T...................TT....~~..#######..T',  // 8
+      'T..TT................T....~~..#######..T',  // 9
+      'T.........T...............~~..###D###..T',  // 10
+      'T.........................~~.....=.....T',  // 11
+      'T................T........~~.....=.....T',  // 12
+      'T.........................~~.....=.....T',  // 13
+      'T.========================BB======.....T',  // 14
+      'T.........................~~........TT.T',  // 15
+      'T.........................~~........T..T',  // 16
+      'T............T....TT......~~...........T',  // 17
+      'T.........................~~...........T',  // 18
+      'T...TTTT.TTTT.............~~...........T',  // 19
+      'T...TTTT.TTTT.............~~..TT.TT..T.T',  // 20
+      'T...TT.....TT.............~~..T...T....T',  // 21
+      'T...TT.....TT.....TT......~~..T...T....T',  // 22
+      'T...TT.....TT.............~~..T...T....T',  // 23
+      'T...TTTTTTTTT.............~~..TTTTT....T',  // 24
+      'T...TTTTTTTTT.........TT..~~...........T',  // 25
+      'T......................T..~~..T....T...T',  // 26
+      'T......T......T...........~~...T.......T',  // 27
+      'T.........................~~...........T',  // 28
+      'TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT',  // 29
+    ],
+  },
+  house: {
+    title: "Oswin's House",
+    rows: [
+      '####################',  // 0
+      '#__________________#',  // 1
+      '#__________________#',  // 2
+      '#__________________#',  // 3
+      '#_____________##___#',  // 4
+      '#_____________##___#',  // 5
+      '#__________________#',  // 6
+      '#__________________#',  // 7
+      '#__________________#',  // 8
+      '#__________________#',  // 9
+      '#__________________#',  // 10
+      '#__________________#',  // 11
+      '#__________________#',  // 12
+      '##########X#########',  // 13
+      '####################',  // 14
+    ],
+  },
+};
+
+// Doors connect a tile on one map to a tile on another. When the player
+// steps onto the "from" tile, UPDATE moves them to the "to" tile.
+const doors = [
+  {
+    fromMap: 'overworld', fromX: 33, fromY: 10,
+    toMap: 'house', toX: 10, toY: 12, facing: 'up',
+  },
+  {
+    fromMap: 'house', fromX: 10, fromY: 13,
+    toMap: 'overworld', toX: 33, toY: 11, facing: 'down',
+  },
+];
+
+// Which way each facing direction moves you, in tiles.
+const directionOffsets = {
+  up:    { dx: 0,  dy: -1 },
+  down:  { dx: 0,  dy: 1  },
+  left:  { dx: -1, dy: 0  },
+  right: { dx: 1,  dy: 0  },
+};
+
+// Things lying on the ground. Walk over one to pick it up.
+const items = [
+  { id: 'herb',    name: 'Healing Herb', map: 'overworld', tileX: 8,  tileY: 22, color: '#7fe36b' },
+  { id: 'plank',   name: 'Wooden Plank', map: 'overworld', tileX: 20, tileY: 25, color: '#c98a4b' },
+  { id: 'lantern', name: 'Lantern',      map: 'overworld', tileX: 32, tileY: 22, color: '#ffb347' },
+  { id: 'crown',   name: 'Gold Crown',   map: 'house',     tileX: 3,  tileY: 2,  color: '#ffe14d' },
+];
+
+// The three quests. Each is a flag in state.flags that starts false.
+// The HUD lists these; the NPCs below are what flip them.
+const quests = [
+  { flag: 'healerHelped', title: 'Bring Mira a healing herb' },
+  { flag: 'bridgeBuilt',  title: 'Bring Bram a wooden plank' },
+  { flag: 'elderLit',     title: 'Bring Oswin his lantern' },
+];
+
+// People to talk to. Each one wants an item; giving it sets a flag.
+// Dialogue is a set of named nodes. A node shows lines of text and offers
+// choices; each choice names the next node, or null to stop talking.
+// Trees are at most two nodes deep on purpose: easy to read, easy to extend.
+// UPDATE picks the starting node: 'afterQuest' if the flag is already set,
+// 'offer' if you are carrying what they want, otherwise 'hello'.
+const npcs = [
+  {
+    id: 'mira',
+    name: 'Mira the Healer',
+    map: 'overworld',
+    tileX: 6,
+    tileY: 13,
+    color: '#e56b9f',
+    wantsItem: 'herb',
+    setsFlag: 'healerHelped',
+    dialogue: {
+      hello: {
+        lines: ["Oh, hello. I'm Mira, the village healer.",
+                'A child down the lane has a fever and my basket is empty.'],
+        choices: [{ label: 'Where do herbs grow?', next: 'more' },
+                  { label: "I'll be back.", next: null }],
+      },
+      more: {
+        lines: ['Healing herbs grow in the tree grove to the south-west.',
+                'Look for a gap in the trees on its north side.'],
+        choices: [],
+      },
+      offer: {
+        lines: ['Is that a healing herb in your bag?', 'Please, may I have it?'],
+        choices: [{ label: 'Give her the herb', next: 'thanks', givesItem: 'herb' },
+                  { label: 'Not right now', next: null }],
+      },
+      thanks: {
+        lines: ['Thank you! The child will be well by morning.'],
+        choices: [],
+      },
+      afterQuest: {
+        lines: ["The fever broke. You're a hero around here, you know."],
+        choices: [],
+      },
+    },
+  },
+  {
+    id: 'bram',
+    name: 'Bram the Carpenter',
+    map: 'overworld',
+    tileX: 24,
+    tileY: 13,
+    color: '#5b8dd6',
+    wantsItem: 'plank',
+    setsFlag: 'bridgeBuilt',
+    dialogue: {
+      hello: {
+        lines: ["Name's Bram. I'd fix that bridge if I had one good plank.",
+                "The river's been cutting the village in half for weeks."],
+        choices: [{ label: 'Where can I find a plank?', next: 'more' },
+                  { label: 'Good luck.', next: null }],
+      },
+      more: {
+        lines: ["There's one lying by the trees to the south, I think.",
+                "Bring it and I'll have the bridge up in no time."],
+        choices: [],
+      },
+      offer: {
+        lines: ['That plank is exactly what I need!'],
+        choices: [{ label: 'Hand over the plank', next: 'thanks', givesItem: 'plank' },
+                  { label: 'Keep it', next: null }],
+      },
+      thanks: {
+        lines: ['Watch this... done! The bridge is open. Go on across.'],
+        choices: [],
+      },
+      afterQuest: {
+        lines: ["Sturdy bridge, isn't it? Best work I've done."],
+        choices: [],
+      },
+    },
+  },
+  {
+    id: 'oswin',
+    name: 'Oswin the Elder',
+    map: 'house',
+    tileX: 10,
+    tileY: 4,
+    color: '#b9a7e0',
+    wantsItem: 'lantern',
+    setsFlag: 'elderLit',
+    dialogue: {
+      hello: {
+        lines: ["Who's there? I can barely see you in this dark house.",
+                'My lantern went out days ago.'],
+        choices: [{ label: "Where's your lantern?", next: 'more' },
+                  { label: "I'll go look.", next: null }],
+      },
+      more: {
+        lines: ['I dropped it in the little wood south of my house.',
+                "These old legs won't carry me there."],
+        choices: [],
+      },
+      offer: {
+        lines: ['Is that my lantern? Light it, please!'],
+        choices: [{ label: 'Give him the lantern', next: 'thanks', givesItem: 'lantern' },
+                  { label: 'Not yet', next: null }],
+      },
+      thanks: {
+        lines: ['Ah, light! Take the old crown on the shelf as thanks.',
+                "It's been gathering dust for fifty years."],
+        choices: [],
+      },
+      afterQuest: {
+        lines: ['Thanks to you I can read again. Come visit anytime.'],
+        choices: [],
+      },
+    },
+  },
+];
+
 
 /* ============================================================
    3 · STATE — the one object that remembers everything
@@ -58,6 +352,50 @@
    "knows" something (where you are, what you carry, what you've
    done), it is a field in here. Nowhere else.
    ============================================================ */
+
+// This is the single source of truth. Every fact about the world that can
+// change lives in this one object, so there is nowhere for a bug to hide.
+//
+// Only two other things in the file change at runtime, and neither is
+// game knowledge: `intents` in INPUT (a mailbox from the keyboard) and the
+// stopwatch inside LOOP (how much time has passed). Neither is saved and
+// neither is drawn.
+const state = {
+  // Which entry in `maps` we are standing in.
+  currentMap: 'overworld',
+
+  player: {
+    tileX: 3,
+    tileY: 14,
+    facing: 'right',
+    // Seconds until the player may take the next step. Counts down in UPDATE.
+    stepCooldown: 0,
+  },
+
+  // Item ids in the order picked up, e.g. ['herb', 'plank'].
+  inventory: [],
+
+  // Item ids that have ever been picked up, so they don't reappear on the
+  // ground after being given away. e.g. { herb: true }.
+  pickedUpItems: {},
+
+  // The quest flags. false until the matching NPC receives their item.
+  flags: {
+    healerHelped: false,
+    bridgeBuilt: false,
+    elderLit: false,
+  },
+
+  // null when nobody is talking. Otherwise which NPC, which dialogue node,
+  // and which choice is highlighted.
+  dialogue: null,
+
+  // The short yellow message at the top of the screen.
+  notice: {
+    text: '',
+    secondsLeft: 0,
+  },
+};
 
 
 /* ============================================================
