@@ -496,6 +496,7 @@ function clearPressedIntents() {
 // order of everything that can happen in the world.
 function update(stepSeconds) {
   updateNotice(stepSeconds);
+  updateSaveKeys();
   if (state.dialogue === null) {
     updatePlayerMovement(stepSeconds);
     updateTalking();
@@ -515,6 +516,29 @@ function showNotice(text) {
 function updateNotice(stepSeconds) {
   if (state.notice.secondsLeft > 0) {
     state.notice.secondsLeft -= stepSeconds;
+  }
+}
+
+// K saves, L loads, N forgets the save and reloads the page, which is the
+// simplest possible "new game": a fresh page starts from the STATE section.
+function updateSaveKeys() {
+  if (intents.savePressed) {
+    if (saveGame()) {
+      showNotice('Saved!');
+    } else {
+      showNotice('Could not save (storage blocked)');
+    }
+  }
+  if (intents.loadPressed) {
+    if (loadGame()) {
+      showNotice('Loaded your save');
+    } else {
+      showNotice('No save found');
+    }
+  }
+  if (intents.newGamePressed) {
+    deleteSave();
+    location.reload();
   }
 }
 
@@ -976,6 +1000,58 @@ function frame(nowInMs) {
    in try/catch because storage can be missing or full.
    ============================================================ */
 
+// Only the parts of state worth remembering are saved. The open speech box
+// and the notice are moments, not progress, so they are left out.
+// Returns true on success so UPDATE can show "Saved!".
+function saveGame() {
+  const snapshot = {
+    currentMap: state.currentMap,
+    player: state.player,
+    inventory: state.inventory,
+    pickedUpItems: state.pickedUpItems,
+    flags: state.flags,
+  };
+  try {
+    localStorage.setItem(saveSlotName, JSON.stringify(snapshot));
+    return true;
+  } catch (error) {
+    // Private browsing, a full disk, or a school policy can all block storage.
+    return false;
+  }
+}
+
+// The one function outside UPDATE that writes to state, because restoring
+// a save IS writing state. Only UPDATE and BOOT ever call it.
+// Returns true if a save was found and applied.
+function loadGame() {
+  try {
+    const savedText = localStorage.getItem(saveSlotName);
+    if (savedText === null) return false;
+    const saved = JSON.parse(savedText);
+    state.currentMap = saved.currentMap;
+    state.player.tileX = saved.player.tileX;
+    state.player.tileY = saved.player.tileY;
+    state.player.facing = saved.player.facing;
+    state.player.stepCooldown = 0;
+    state.inventory = saved.inventory;
+    state.pickedUpItems = saved.pickedUpItems;
+    state.flags = saved.flags;
+    state.dialogue = null;
+    return true;
+  } catch (error) {
+    // A corrupted or hand-edited save is ignored rather than crashing.
+    return false;
+  }
+}
+
+function deleteSave() {
+  try {
+    localStorage.removeItem(saveSlotName);
+  } catch (error) {
+    // Nothing to do: if storage is unavailable there was no save anyway.
+  }
+}
+
 
 /* ============================================================
    10 · BOOT — wire it up and start
@@ -989,6 +1065,11 @@ canvas.height = viewportHeightInTiles * tileSizeInPixels + hudHeightInPixels;
 
 window.addEventListener('keydown', onKeyDown);
 window.addEventListener('keyup', onKeyUp);
+
+// Coming back after closing the tab picks up where you left off.
+if (loadGame()) {
+  showNotice('Welcome back. Save loaded.');
+}
 
 requestAnimationFrame(frame);
 
