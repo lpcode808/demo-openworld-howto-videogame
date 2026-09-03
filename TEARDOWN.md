@@ -42,7 +42,7 @@ Each read below takes 10–15 minutes and stands on its own. Every read has the 
     │      you walk         │   │   ▶ 4 · INPUT  writing that down       │
     │      around in        │   │   ▶ intents    moveRight               │
     │      here             │   │   ▶ 5 · UPDATE updates this frame: 1   │
-    │                       │   │   │ 3 · state  last was player.tileX   │
+    │                       │   │   │ 3 · state  timers only, last tileX │
     │                       │   │   ▶ 7 · RENDER frame 812, untouched    │
     ├───────────────────────┤   │   ▶ screen     what you are looking at │
     │ bag · quests · keys   │   ├────────────────────────────────────────┤
@@ -180,7 +180,12 @@ Now the other end. `update` (702) runs sixty times a second from `frame`. It cal
 target tile, asks COLLIDE whether it is allowed, and only then changes `state.player.tileX`.
 
 Notice the `stepCooldown`. Without it, holding a key would move you sixty tiles a second. The
-cooldown is what makes a held key a steady walk.
+cooldown is what makes a held key a steady walk. You can see it in the x-ray: while you walk,
+the `3 · state` row says **timers only** on most frames. UPDATE ran, but the only thing it
+touched was that countdown, which the change log leaves out so real changes are not buried
+under sixty ticks a second. Every ninth frame or so it says **this frame:** and names the
+tile that changed. Press **P** and the top row says `p — not a game key, INPUT skips it`:
+the panel's own keys never enter the pipe, which is why pausing changes nothing in `state`.
 
 Notice also that `update` checks `state.dialogue`. While a speech box is open, the same arrow
 keys mean "move the highlight" and Space means "pick", so a different function runs.
@@ -305,7 +310,7 @@ line 1240 takes the one the purity check uses. Two snapshots, two comparisons:
 Look at what that costs. Nothing inside UPDATE is instrumented — no logging, no hooks, no
 special cases. The same two strings that prove RENDER is honest are also the complete record of
 what the rules did. If you wanted to know what changed, you would have had to take those
-snapshots anyway. That is spelled out in `§11 X-RAY, lines 1371–1795`.
+snapshots anyway. That is spelled out in `§11 X-RAY, lines 1371–1797`.
 
 **Question 6:** Find the line in RENDER that decides whether the bridge is drawn as water or as
 planks. Does that line *change* anything? If not, which line, in which section, made the bridge

@@ -2,8 +2,8 @@
 
 **An open-world adventure game built to be read, not played.**
 
-Status: v1.3 · P1 built 2026-09-01 · X-RAY and pause/step added 2026-09-02 (§4a, §5a, §8)
-· X-ray explanation layer added 2026-09-02 (§4b, §8)
+Status: v1.4 · P1 built 2026-09-01 · X-RAY and pause/step added 2026-09-02 (§4a, §5a, §8)
+· X-ray explanation layer added 2026-09-02 (§4b, §8) · X-ray wording pass 2026-09-03 (§4c, §8)
 
 ---
 
@@ -182,6 +182,36 @@ readings, no new memory, no new hook into the game.
 Diagrams belong in `TEARDOWN.md` too, for the same reason: a map of the panel in "Before you
 start", the key-to-pixel chain in Read 4, and the two-snapshots picture in Read 6.
 
+### 4c. Amendment (v1.4) — five places the panel misled a first-time reader
+
+A second evaluation pass (one reviewer reading as a fifteen-year-old, one as a learning-UX
+reviewer, plus a screenshot pass at 1366×650) found the same two problems independently, and
+three smaller ones. All five are wording and layout on the same readings: no new readings, no
+new memory, no new hook into the game, and the file is still exactly 1,800 lines because
+every added line was paid for by a shorter comment in section 11 or the stylesheet.
+
+- **Panel keys were shown as if they went down the pipe.** After P or `.`, the `keyboard`
+  row read `last key you pressed: p` above `nothing to write down`. It now reads
+  `p — not a game key, INPUT skips it`, using INPUT's own `keysTheGameUses` list, so a student
+  learns that the panel listens beside the game, not through it.
+- **UPDATE lit while `state` said nothing changed.** Between steps, UPDATE runs and touches
+  only `stepCooldown` and `notice.secondsLeft`, which the change log skips on purpose. The
+  `3 · state` row now says `timers only, last …` on those frames, `this frame: …` when a real
+  change happened, and `no change, last …` when nothing moved at all, and it always carries the
+  `#n` tick. The UPDATE box's caption names the two skipped fields.
+- **An empty textarea took the first fold.** It is hidden until the first copy, so the change
+  log, the payoff of the arrow, is visible without scrolling.
+- **The STATE caption said nothing lives outside `state`**, under an intents box that visibly
+  does. It now names the three things that do and says none is game knowledge.
+- **The diagram was a readout, not an invitation.** Its caption now says to hold an arrow key
+  and watch the rows light from the top down, and that the numbers are the file's sections,
+  since the detail boxes run 4, 5, 6, 3, 7+8 in arrow order rather than file order.
+
+Considered and rejected: rewording the UPDATE row on the one frame a `.` step runs (a 16 ms
+frame nobody can read; the `this frame:` row and the change log already show the step), and
+reordering the detail boxes by section number (would split UPDATE from the COLLIDE box that
+explains its decision).
+
 ---
 
 ## 5. Scope — what the game actually is
@@ -300,6 +330,13 @@ Mechanically checkable — run these before calling it done:
       hook into LOOP is still the same four lines.
 - [ ] (v1.3) All four `tools/*.mjs` exit 0, and `check-doc-lines.mjs` is clean after the
       insertion above the script shifted every citation.
+- [ ] (v1.4) After P or `.` with the panel open, the `keyboard` row says the key is not a game
+      key and INPUT skips it; after an arrow key it names the key again.
+- [ ] (v1.4) While walking, the `3 · state` row alternates `this frame: #n …` and
+      `timers only, last #n …`; standing still it reads `no change, last #n …`.
+- [ ] (v1.4) The prompt textarea is hidden until the first "ask an AI" click, then shown.
+- [ ] (v1.4) The UPDATE caption names `stepCooldown` and `notice.secondsLeft` as left out.
+- [ ] (v1.4) `game.html` is ≤ 1,800 lines and every student-facing line citation still holds.
 
 Judged by a human, not the agent:
 

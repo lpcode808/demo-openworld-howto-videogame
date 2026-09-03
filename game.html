@@ -7,9 +7,8 @@
      one" so the console never shows a missing-file error. -->
 <link rel="icon" href="data:,">
 <style>
-  /* The page is a dark frame around one canvas, with an optional side panel
-     (the X-ray, section 11) to its right. Everything you see in the game
-     itself is still drawn onto the canvas by the JavaScript below. */
+  /* A dark frame around one canvas, plus an optional side panel (the X-ray,
+     section 11). Everything in the game itself is drawn on the canvas below. */
   body {
     margin: 0;
     background: #101018;
@@ -72,16 +71,14 @@
   aside#xray pre#xrayState {
     max-height: 300px;
   }
-  /* An intent that is currently true (a key held, a press just seen) is
-     bright; everything else is dim, so "what is on right now" jumps out. */
+  /* A true intent (a key held, a press just seen) is bright; the rest dim. */
   aside#xray li {
     color: #8a8a99;
   }
   aside#xray li.on {
     color: #ffd75e;
   }
-  /* The pipe diagram at the top. `pre`, not `pre-wrap`, so its columns stay
-     columns; it is a picture made of characters, and wrapping would break it. */
+  /* The pipe diagram: `pre`, not `pre-wrap`. It is a picture made of characters. */
   aside#xray ul#xrayPipe {
     white-space: pre;
     overflow-x: auto;
@@ -133,8 +130,9 @@
   <h2>X-RAY · keyboard → INPUT → intents → UPDATE → state → RENDER → screen</h2>
   <section>
     <h3>the whole file, as one picture</h3>
-    <p class="hint">One row per stage of the arrow above, in order.
-      ▶ did something on the last frame; │ sat still.</p>
+    <p class="hint">One row per stage of the arrow above, in order. ▶ did something
+      on the last frame; │ sat still. Hold an arrow key and watch the rows light up
+      from the top down. The numbers are the file's sections.</p>
     <ul id="xrayPipe"></ul>
   </section>
   <section>
@@ -144,7 +142,7 @@
     <button id="xrayAskExplain" type="button">copy: explain this frame</button>
     <button id="xrayAskDraw" type="button">copy: draw this frame</button>
     <p class="hint" id="xrayAskStatus">Nothing copied yet.</p>
-    <textarea id="xrayAskText" rows="5" readonly></textarea>
+    <textarea id="xrayAskText" rows="5" readonly hidden></textarea>
   </section>
   <section>
     <h3>4 · INPUT — intents right now</h3>
@@ -153,7 +151,8 @@
   </section>
   <section>
     <h3>5 · UPDATE — what changed in state</h3>
-    <p class="hint">Newest first. #n says which update tick did it.</p>
+    <p class="hint">Newest first. #n says which update tick did it. Two timers that
+      tick on almost every update, stepCooldown and notice.secondsLeft, are left out.</p>
     <pre id="xrayChanges"></pre>
   </section>
   <section>
@@ -163,7 +162,8 @@
   </section>
   <section>
     <h3>3 · STATE — everything the game knows</h3>
-    <p class="hint">The whole world, live. Nothing is kept anywhere else.</p>
+    <p class="hint">The whole world, live. Only intents (above), the loop's clock and
+      this panel's own counters live outside it, and none of them is game knowledge.</p>
     <pre id="xrayState"></pre>
   </section>
   <section>
@@ -1376,8 +1376,8 @@ requestAnimationFrame(frame);
    the top, and the four LOOP lines that call it: same game.
    ============================================================ */
 
-// The panel and every element inside it. Looked up once, at load, exactly
-// the way BOOT looks up the canvas — nothing here is game state.
+// The panel and every element inside it, looked up once at load the way BOOT
+// looks up the canvas. Nothing here is game state.
 const xrayPanel = document.getElementById('xray');
 const xrayPipeList = document.getElementById('xrayPipe');
 const xrayIntentsList = document.getElementById('xrayIntents');
@@ -1390,10 +1390,9 @@ const xrayAskDrawButton = document.getElementById('xrayAskDraw');
 const xrayAskStatus = document.getElementById('xrayAskStatus');
 const xrayAskText = document.getElementById('xrayAskText');
 
-// Whether the panel was open, so an edit-save-reload cycle leaves it the
-// way you left it. Kept here, not in CONFIG, on purpose: every trace of
-// the X-ray, including its one line of storage, lives in this section, so
-// deleting the section removes all of it.
+// Whether the panel was open, so an edit-save-reload cycle leaves it the way
+// you left it. Kept here, not in CONFIG, on purpose: every trace of the X-ray,
+// its one line of storage included, lives in this section and dies with it.
 const xrayStorageKey = 'open-world-how-to-xray-open';
 
 // The third and last thing outside `state` that changes while the game
@@ -1420,15 +1419,12 @@ function xrayStopwatchWhilePaused(unsimulatedSecondsSoFar) {
 // How many change lines the panel remembers. Older ones fall off the end.
 const xrayChangesToKeep = 14;
 
-// These two fields tick on almost every step. Logging them would push
-// every real change off the list within a second or two, so the diff
-// below skips them. They still show up whole in the STATE panel.
+// These two fields tick on almost every step. Logging them would push every
+// real change off the list within seconds, so the diff skips them.
 const xrayQuietFields = ['player.stepCooldown', 'notice.secondsLeft'];
 
-// A JSON.stringify replacer: numbers are rounded to 2 decimals so the
-// panel reads "3.14" instead of "3.14159265358979". Everything else is
-// passed through unchanged. A named function, not an arrow, so it reads
-// like every other function in the file.
+// A JSON.stringify replacer that rounds numbers to 2 decimals, so the panel
+// reads "3.14" instead of "3.14159265358979". Everything else passes through.
 function roundForDisplay(key, value) {
   if (typeof value !== 'number') return value;
   return Math.round(value * 100) / 100;
@@ -1466,9 +1462,8 @@ function listChangedFields(before, after, pathSoFar, changesOut) {
 }
 
 // Called every frame, whether the panel is open or not, so the change log
-// never misses something that happened while the X-ray was closed.
-// Hands the list straight back as well, because the pipe diagram wants to
-// say what changed on this frame, not what has changed in the last fourteen.
+// never misses something that happened while the X-ray was closed. Hands the
+// list straight back too, so the pipe diagram can say what changed this frame.
 function recordChanges(stateBeforeUpdate, stateAfterUpdate) {
   if (stateBeforeUpdate === stateAfterUpdate) return [];
   const before = JSON.parse(stateBeforeUpdate);
@@ -1485,16 +1480,14 @@ function recordChanges(stateBeforeUpdate, stateAfterUpdate) {
 }
 
 // ---- The pipe, as a picture that moves -------------------------
-// One row per stage of the sentence at the top of this file, in order, so
-// the arrow stops being a slogan on a heading and becomes a readout of what
-// happened on the frame you are looking at.
+// One row per stage of the sentence at the top of this file, in order, so the
+// arrow stops being a slogan and becomes a readout of the frame you are seeing.
 const xrayPipeStages = [
   'keyboard', '4 · INPUT', 'intents', '5 · UPDATE',
   '3 · state', '7 · RENDER', 'screen',
 ];
 
-// The diagram is characters lined up in columns, so a row that wrapped
-// would stop being a diagram. Longer text is cut at this width instead.
+// A row that wrapped would stop being a diagram, so longer text is cut here.
 const xrayPipeDetailWidth = 40;
 
 // Built once, at load, the way buildIntentsList builds the intents box:
@@ -1507,9 +1500,8 @@ function buildPipeRows() {
   }
 }
 
-// A stage that did something this frame is marked ▶ and lit; one that sat
-// still is marked │ and dim. Two signals for one fact, so the diagram still
-// reads on a projector where the two colours look the same.
+// A stage that acted this frame is marked ▶ and lit; one that sat still is │
+// and dim. Two signals for one fact, for projectors where the colours blur.
 function showPipeRow(index, isActive, detail) {
   const row = document.getElementById('xrayPipeRow' + index);
   const marker = isActive ? '▶ ' : '│ ';
@@ -1519,29 +1511,40 @@ function showPipeRow(index, isActive, detail) {
   row.className = isActive ? 'on' : '';
 }
 
-// Re-worded every frame. Nothing is computed here for the diagram's sake:
-// every value on it is one the boxes below are already showing, said shorter.
-function showPipe(updatesThisFrame, changesThisFrame) {
+// Re-worded every frame from values the boxes below already show, said shorter.
+function showPipe(updatesThisFrame, changesThisFrame, stateMoved) {
   const askedFor = [];
   for (const key in intents) {
     if (intents[key]) askedFor.push(key);
   }
   const asking = askedFor.length > 0;
-  showPipeRow(0, asking, 'last key you pressed: ' + xrayMemory.lastKeyDown);
+  // X, P and . are this panel's keys and INPUT never hears them. Say so, or
+  // the row reads as if every key you press goes down the pipe.
+  const lastKey = xrayMemory.lastKeyDown;
+  let keyWords = 'last key you pressed: ' + lastKey;
+  if (lastKey !== '(none yet)' && !keysTheGameUses.includes(lastKey)) {
+    keyWords = lastKey + ' — not a game key, INPUT skips it';
+  }
+  showPipeRow(0, asking, keyWords);
   showPipeRow(1, asking, asking ? 'writing that down in intents' : 'nothing to write down');
   showPipeRow(2, asking, asking ? askedFor.join(' ') : 'every field false');
   const updateWords = xrayMemory.paused ? 'PAUSED — press . for one step' :
     'updates this frame: ' + updatesThisFrame;
   showPipeRow(3, updatesThisFrame > 0, updateWords);
-  // Most frames change nothing — a step takes several ticks — so a row that
-  // only ever said "nothing changed" would hide the thing worth watching.
-  // When this frame was quiet, the row shows the last change that wasn't.
-  let changeWords = 'nothing has changed yet';
+  // Most frames UPDATE only ticks the two timers the change log skips. Saying
+  // "timers only" there, instead of "no change" under a lit UPDATE row, keeps
+  // the diagram from reading as if UPDATE ran and touched nothing at all.
+  const changedNow = changesThisFrame.length > 0;
+  const timersOnly = stateMoved && !changedNow;
+  let tense = 'no change, last ';
+  if (timersOnly) tense = 'timers only, last ';
+  if (changedNow) tense = 'this frame: ';
+  let changeWords = timersOnly ? 'only the two timers ticked' : 'nothing has changed yet';
   if (xrayMemory.recentChanges.length > 0) {
-    changeWords = 'last was ' + xrayMemory.recentChanges[0];
+    // The log spaces its columns with two spaces; this row has no room for them.
+    changeWords = tense + xrayMemory.recentChanges[0].replaceAll('  ', ' ');
   }
-  if (changesThisFrame.length > 0) changeWords = changesThisFrame[0];
-  showPipeRow(4, changesThisFrame.length > 0, changeWords);
+  showPipeRow(4, changedNow, changeWords);
   showPipeRow(5, true, 'frame ' + xrayMemory.framesDrawn + ' drawn, state untouched');
   showPipeRow(6, true, 'what you are looking at');
 }
@@ -1615,14 +1618,12 @@ function showLoop(updatesThisFrame) {
 }
 
 // ---- Ask an AI about this exact moment -------------------------
-// The boxes above are true but terse. These two buttons copy the same words
-// into a question you can paste into any chat model: one asks for an
-// explanation, one asks for a picture. Both are built from what is on screen
-// at the instant you click, so there is never a second version of the truth
-// for this file to keep in step with the first.
+// These two buttons copy what the panel is showing into a question for any
+// chat model: one asks for an explanation, one for a picture. Both are built
+// from the screen at the instant you click, so there is only one truth to keep.
 
 // The one sentence this file is. Both prompts open with it, because a model
-// that has never seen game.html has no other way to know the shape of it.
+// that has never seen game.html has no other way to know its shape.
 const xrayPipeSentence =
   'keyboard -> INPUT -> intents -> UPDATE -> state -> RENDER -> screen';
 
@@ -1665,9 +1666,8 @@ function buildExplainPrompt() {
   return text;
 }
 
-// The picture half: the same seven rows, described so an image model can
-// draw them. One instruction per sentence — image models lose the thread of
-// a long paragraph and start inventing words.
+// The picture half: the same seven rows, described so an image model can draw
+// them. One instruction per sentence; image models lose the thread otherwise.
 function buildDrawPrompt() {
   let text = 'Draw one diagram, flat vector style, like a good textbook\n';
   text += 'illustration: landscape, plain background, no shadows.\n\n';
@@ -1688,9 +1688,11 @@ function buildDrawPrompt() {
 }
 
 // Selecting the box and asking the browser to copy the selection is the one
-// kind of copy that behaves the same from a file:// page in Edge and Chrome.
-// If the browser refuses, the text is still selected, so Ctrl+C finishes it.
+// copy that behaves the same from file:// in Edge and Chrome. If the browser
+// refuses, the text stays selected, so Ctrl+C finishes it. The box is hidden
+// until the first copy so an empty one never pushes the change log off screen.
 function copyPromptToClipboard(promptText) {
+  xrayAskText.hidden = false;
   xrayAskText.value = promptText;
   xrayAskText.focus();
   xrayAskText.select();
@@ -1721,10 +1723,11 @@ function onAskDrawClick() {
 function showXray(stateBeforeUpdate, stateAfterUpdate, updatesThisFrame) {
   xrayMemory.framesDrawn += 1;
   xrayMemory.updatesRun += updatesThisFrame;
+  const stateMoved = stateBeforeUpdate !== stateAfterUpdate;
   const changesThisFrame = recordChanges(stateBeforeUpdate, stateAfterUpdate);
   xrayMemory.stepRequested = false;
   if (xrayPanel.hidden) return;
-  showPipe(updatesThisFrame, changesThisFrame);
+  showPipe(updatesThisFrame, changesThisFrame, stateMoved);
   showIntents();
   showChanges();
   showCollide();
@@ -1792,7 +1795,6 @@ restoreXrayOpenState();
 window.addEventListener('keydown', onXrayKeyDown);
 xrayAskExplainButton.addEventListener('click', onAskExplainClick);
 xrayAskDrawButton.addEventListener('click', onAskDrawClick);
-
 </script>
 </body>
 </html>
