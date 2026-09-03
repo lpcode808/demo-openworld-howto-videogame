@@ -2,7 +2,8 @@
 // tools/playthrough.mjs — a headless Chromium playthrough of game.html that
 // proves the whole game works end to end: movement, collision, NPCs and
 // dialogue, items and inventory, quest flags, the bridge gate, the second
-// map, save, reload, and "new game".
+// map, save, reload, and "new game" -- then level two: the forest gate shut
+// and open, the third map, the bog's cost, and the three-item feast quest.
 //
 // Maintainer tool, not a student deliverable (see tools/README.md).
 // Usage: PLAYWRIGHT_BROWSERS_PATH=/opt/pw-browsers node tools/playthrough.mjs
@@ -161,21 +162,24 @@ async function clickAskButton(page, buttonId) {
 // walkability rule as the game's own COLLIDE section (canWalkTo).
 // ------------------------------------------------------------------
 
-function isWalkableTile(rows, tileTypes, npcList, mapName, bridgeBuilt, x, y) {
+// `gates` carries the two tiles whose answer depends on state, so this
+// mirror of COLLIDE stays honest: { bridgeBuilt, forestGateOpen }.
+function isWalkableTile(rows, tileTypes, npcList, mapName, gates, x, y) {
   if (y < 0 || y >= rows.length) return false;
   if (x < 0 || x >= rows[0].length) return false;
   for (const npc of npcList) {
     if (npc.map === mapName && npc.tileX === x && npc.tileY === y) return false;
   }
   const tileCharacter = rows[y][x];
-  if (tileCharacter === 'B') return bridgeBuilt;
+  if (tileCharacter === 'B') return gates.bridgeBuilt;
+  if (tileCharacter === 'G') return gates.forestGateOpen;
   const tileType = tileTypes[tileCharacter];
   return tileType !== undefined && tileType.walkable;
 }
 
 // Returns an array of steps [{ x, y, direction }, ...] from start to goal,
 // excluding the start tile itself, or null if no path exists.
-function findPath(rows, tileTypes, npcList, mapName, bridgeBuilt, start, goal) {
+function findPath(rows, tileTypes, npcList, mapName, gates, start, goal) {
   const visited = new Set([start.x + ',' + start.y]);
   const cameFrom = new Map();
   const queue = [start];
@@ -202,7 +206,7 @@ function findPath(rows, tileTypes, npcList, mapName, bridgeBuilt, start, goal) {
       const nextY = current.y + step.dy;
       const key = nextX + ',' + nextY;
       if (visited.has(key)) continue;
-      if (!isWalkableTile(rows, tileTypes, npcList, mapName, bridgeBuilt, nextX, nextY)) continue;
+      if (!isWalkableTile(rows, tileTypes, npcList, mapName, gates, nextX, nextY)) continue;
       visited.add(key);
       cameFrom.set(key, current);
       queue.push({ x: nextX, y: nextY, direction: step.direction });
@@ -270,8 +274,11 @@ async function walkTo(page, world, targetX, targetY) {
   const rows = world.maps[mapName].rows;
   const start = { x: state.player.tileX, y: state.player.tileY };
   const goal = { x: targetX, y: targetY };
-  const path = findPath(rows, world.tileTypes, world.npcs, mapName,
-    state.flags.bridgeBuilt, start, goal);
+  const gates = {
+    bridgeBuilt: state.flags.bridgeBuilt,
+    forestGateOpen: state.flags.healerHelped && state.flags.bridgeBuilt && state.flags.elderLit,
+  };
+  const path = findPath(rows, world.tileTypes, world.npcs, mapName, gates, start, goal);
   if (path === null) {
     throw new Error('No path from (' + start.x + ',' + start.y + ') to (' +
       targetX + ',' + targetY + ') on map "' + mapName + '"');
@@ -326,7 +333,7 @@ async function driveDialogueToEnd(page, npcStatic) {
     const state = await getState(page);
     if (state.dialogue === null) return;
     const node = npcStatic.dialogue[state.dialogue.nodeKey];
-    const givesItemIndex = node.choices.findIndex((choice) => choice.givesItem);
+    const givesItemIndex = node.choices.findIndex((choice) => choice.givesItems);
     if (givesItemIndex !== -1) {
       await selectDialogueChoice(page, state.dialogue.choiceIndex, givesItemIndex);
     }
@@ -404,6 +411,7 @@ async function runPlaythrough(page) {
   const world = await getWorld(page);
 
   await checkFreshLoadBasics(page);
+  await checkForestGateIsShutOnAFreshLoad(page, world);
 
   const herb = findItem(world, 'herb');
   await walkTo(page, world, herb.tileX, herb.tileY);
@@ -473,6 +481,8 @@ async function runPlaythrough(page) {
     stateBeforeSave.player.tileY + ') after reload, got (' + state.player.tileX + ',' +
     state.player.tileY + ')');
   console.log('PASS — reload restored map, flags, inventory and player position from the save');
+
+  await runLevelTwoChecks(page, world);
 
   const navigationAfterN = page.waitForNavigation({ waitUntil: 'load' }).catch(() => {});
   await tapKey(page, 'n');
@@ -1059,6 +1069,146 @@ async function runXrayChecks(page, world) {
   await checkAskDrawButton(page);
   await checkClipboardReceivedPrompt(page);
   await runPlaytestFixChecks(page, world);
+}
+
+// ------------------------------------------------------------------
+// v1.6: level two. The forest gate is the second tile in the file whose
+// walkability depends on `state`, so it is checked the same way the bridge
+// is: shut before, open after, and the map behind it actually reachable.
+// PRD §5b.
+// ------------------------------------------------------------------
+
+// Before any quest is done the gate is a wall: COLLIDE says no, the picture
+// agrees (it is drawn as trees, not path), and walking into it does nothing.
+async function checkForestGateIsShutOnAFreshLoad(page, world) {
+  const gate = findDoor(world, 'overworld', 'forest');
+  const shut = await page.evaluate((at) => ({
+    walkable: canWalkTo('overworld', at.x, at.y),
+    color: tileColorFor('G'),
+    treeColor: tileTypes['T'].color,
+    pathColor: tileTypes['='].color,
+  }), { x: gate.fromX, y: gate.fromY });
+  assertTrue(shut.walkable === false,
+    'expected the forest gate at (' + gate.fromX + ',' + gate.fromY + ') to be shut on a ' +
+    'fresh load, but canWalkTo said true');
+  assertTrue(shut.color === shut.treeColor,
+    'expected a shut gate to be drawn in the tree colour, got ' + shut.color);
+  console.log('PASS — on a fresh load the forest gate is shut and drawn as trees');
+
+  // Walk to the tile below it and try to step in. The player must not move.
+  await walkTo(page, world, gate.fromX, gate.fromY + 1);
+  const before = await getState(page);
+  await tapKey(page, 'ArrowUp', 300);
+  const after = await getState(page);
+  assertTrue(after.player.tileY === before.player.tileY && after.currentMap === 'overworld',
+    'expected holding Up against the shut gate to move nobody, but the player went from ' +
+    JSON.stringify(before.player) + ' to ' + JSON.stringify(after.player) +
+    ' on map "' + after.currentMap + '"');
+  console.log('PASS — holding Up against the shut gate does not move the player or change map');
+}
+
+// With all three village flags set the same tile answers differently, and
+// the picture changes with it. This is the bridge's lesson, twice.
+async function checkForestGateOpensWithTheThirdQuest(page, world) {
+  const gate = findDoor(world, 'overworld', 'forest');
+  const open = await page.evaluate((at) => ({
+    walkable: canWalkTo('overworld', at.x, at.y),
+    color: tileColorFor('G'),
+    pathColor: tileTypes['='].color,
+  }), { x: gate.fromX, y: gate.fromY });
+  assertTrue(open.walkable === true,
+    'expected the forest gate to be open once all three village flags are set');
+  assertTrue(open.color === open.pathColor,
+    'expected an open gate to be drawn in the path colour, got ' + open.color);
+  console.log('PASS — with all three village quests done the gate is walkable and drawn as path');
+}
+
+// Every bog tile costs slowTileStepMultiplier ordinary steps. Read the cost
+// straight out of the game's own function, then prove it in real time by
+// walking the same distance over grass and over the bog.
+async function checkTheBogCostsMoreThanGrass(page) {
+  const costs = await page.evaluate(() => ({
+    bog: stepCooldownFor('forest', 14, 8),
+    grass: stepCooldownFor('forest', 14, 18),
+    multiplier: slowTileStepMultiplier,
+  }));
+  assertTrue(costs.bog === costs.grass * costs.multiplier,
+    'expected a bog step to cost ' + costs.multiplier + 'x a grass step, got ' +
+    costs.bog + ' vs ' + costs.grass);
+  console.log('PASS — a bog step costs ' + costs.multiplier + 'x a grass step (' +
+    costs.bog.toFixed(3) + 's vs ' + costs.grass.toFixed(3) + 's)');
+}
+
+// Walk the whole of level two: in through the gate, gather all three, back
+// out through the exit, and hand the basket over.
+async function runLevelTwoChecks(page, world) {
+  await checkForestGateOpensWithTheThirdQuest(page, world);
+  await checkTheBogCostsMoreThanGrass(page);
+
+  // The playthrough leaves the player inside the house (that is where the
+  // save/reload check ends), and walkTo only pathfinds within one map.
+  let state = await getState(page);
+  if (state.currentMap !== 'overworld') {
+    const wayOut = findDoor(world, state.currentMap, 'overworld');
+    await walkTo(page, world, wayOut.fromX, wayOut.fromY);
+    state = await getState(page);
+    assertTrue(state.currentMap === 'overworld',
+      'expected to be outdoors again before heading for the forest, got "' +
+      state.currentMap + '"');
+    console.log('PASS — left the house and came back out into the village');
+  }
+
+  const gate = findDoor(world, 'overworld', 'forest');
+  await walkTo(page, world, gate.fromX, gate.fromY);
+  state = await getState(page);
+  assertTrue(state.currentMap === 'forest',
+    'expected to be in "forest" after stepping on the open gate, got "' + state.currentMap + '"');
+  assertTrue(state.player.tileX === gate.toX && state.player.tileY === gate.toY,
+    'expected to arrive at (' + gate.toX + ',' + gate.toY + '), got (' +
+    state.player.tileX + ',' + state.player.tileY + ')');
+  console.log('PASS — stepped through the open gate into ' + world.maps.forest.title);
+
+  // The three gatherables, in whatever order the table lists them. Each one
+  // is a separate walk, which also proves the map is fully connected.
+  for (const itemId of ['mushroom', 'honeycomb', 'berries']) {
+    const item = findItem(world, itemId);
+    await walkTo(page, world, item.tileX, item.tileY);
+    state = await getState(page);
+    assertTrue(state.inventory.includes(itemId),
+      'expected ' + itemId + ' in the bag after walking over it at (' +
+      item.tileX + ',' + item.tileY + ')');
+    console.log('PASS — gathered ' + item.name + ' at (' + item.tileX + ',' + item.tileY + ')');
+  }
+
+  const exit = findDoor(world, 'forest', 'overworld');
+  await walkTo(page, world, exit.fromX, exit.fromY);
+  state = await getState(page);
+  assertTrue(state.currentMap === 'overworld',
+    'expected to be back in "overworld" after the forest exit, got "' + state.currentMap + '"');
+  console.log('PASS — the forest exit leads back to the village');
+
+  await talkAndGiveItem(page, world, 'nessa');
+  state = await getState(page);
+  for (const itemId of ['mushroom', 'honeycomb', 'berries']) {
+    assertTrue(!state.inventory.includes(itemId),
+      'expected ' + itemId + ' to leave the bag when the basket was handed over');
+  }
+  assertTrue(state.flags.feastHeld, 'expected flag feastHeld true after Nessa got all three');
+  console.log('PASS — handing over all three at once emptied the bag and set feastHeld');
+
+  // Four quests now, and the HUD has to have somewhere to draw the fourth.
+  const hud = await page.evaluate(() => ({
+    questCount: quests.length,
+    canvasHeight: canvas.height,
+    worldHeight: viewportHeightInTiles * tileSizeInPixels,
+    lineHeight: layout.hudLineHeight,
+    helpBaseline: hudHeightInPixels - layout.hudLineHeight / 2,
+  }));
+  const lastQuestBaseline = hud.lineHeight * hud.questCount;
+  assertTrue(lastQuestBaseline < hud.helpBaseline,
+    'expected the last of ' + hud.questCount + ' quest lines (baseline ' + lastQuestBaseline +
+    ') to sit above the help line (baseline ' + hud.helpBaseline + ') inside the HUD');
+  console.log('PASS — all ' + hud.questCount + ' quest lines fit in the HUD above the help line');
 }
 
 // ------------------------------------------------------------------
