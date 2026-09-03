@@ -16,3 +16,4 @@ optional eleventh; the banner at the top of each says what to look for. Start at
 
 **Guided:** [`TEARDOWN.md`](./TEARDOWN.md) is six 10–15 minute reads with questions and answers.
 [`CHANGE-ME.md`](./CHANGE-ME.md) is ten edits, easiest first. The spec is [`PRD.md`](./PRD.md).
+[`how.html`](./how.html) is the time-lapse of how the file itself got written.

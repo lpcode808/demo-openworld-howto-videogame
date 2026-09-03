@@ -193,3 +193,13 @@ elsewhere. Desktop agents read the newest entry after syncing.
   inside the diagram box. Consolas (Edge's default) fits. P2 still deliberately untouched.
 - Routing: → maintainer opens `game.html` in Edge, presses X, holds an arrow, and checks the
   `3 · state` row reads without a horizontal scrollbar; then run the student test.
+
+### 2026-09-03 — how.html first draft: ADEPT build-history scaffolding — Cursor cloud
+- New student page `how.html`: ADEPT framing (BetterExplained), three agent threads, eight
+  dated phases from the PRD through v1.4 and Pages. Broad strokes, Hawaii-time stamps, why,
+  what they tested. Scaffolding for later sessions (`<article id="phase-N">`, HTML comments).
+- Linked from the help line under the canvas (same 1,800 lines), the `index.html` noscript
+  fallback, and README. PRD §10 and AGENTS.md record that it is extra, not a fifth deliverable.
+- `game.html` itself is otherwise untouched; `check.mjs` and `check-doc-lines.mjs` still PASS.
+- Routing: → merge this first version to main, then other agents fill in close-ups under
+  each phase. Edge-on-a-school-laptop check is still outstanding.
