@@ -180,6 +180,10 @@ elsewhere. Desktop agents read the newest entry after syncing.
 - Docs: `TEARDOWN.md` Read 4 gained a paragraph tying `stepCooldown` to the new `timers only`
   row and the `not a game key` row; the panel map's state row was re-lettered. `PRD.md` gained
   §4c and five v1.4 §8 criteria. README and CHANGE-ME needed no change.
+- `tools/playthrough.mjs` gained five v1.4 checks (hint text, the keyboard row after P, the state
+  row's three tenses sampled while walking, textarea hidden on a fresh load and shown after the
+  first click), written by a Sonnet-model agent and re-run here twice: 44 PASS lines, 29 s, zero
+  console output. All four tools exit 0. Landed as PR #7 on `main`.
 - Rejected on purpose: rewording the UPDATE row on the single 16 ms frame a `.` step runs (the
   `this frame:` row and the log already show the step), and reordering the detail boxes by
   section number (would separate UPDATE from the COLLIDE box that explains its decision).

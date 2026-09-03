@@ -491,9 +491,11 @@ async function runPlaythrough(page) {
 
 // ------------------------------------------------------------------
 // X-RAY: the v1.1/v1.2 panel, its open/closed memory, pause/step, the
-// v1.3 pipe diagram, and the v1.3 "ask an AI" buttons. Section 11 in
-// game.html; keys X, P and "." on their own listener, separate from the
-// game's own INPUT section.
+// v1.3 pipe diagram, the v1.3 "ask an AI" buttons, and the v1.4 details —
+// the keyboard row naming a skipped key, the state row's tense, the
+// textarea's hidden/visible moments, and the panel's own hint text. Section
+// 11 in game.html; keys X, P and "." on their own listener, separate from
+// the game's own INPUT section.
 // ------------------------------------------------------------------
 
 // (v1.1) X shows the panel; X again hides it. Starts hidden on this fresh
@@ -713,6 +715,70 @@ async function checkPipeDiagramShape(page) {
     xrayPipeStageLabels.join(' → '));
 }
 
+// (v1.4) The two hints that explain how to read the panel say what the panel
+// actually does: the "5 · UPDATE" hint names the two quiet fields it leaves
+// out of the change log (xrayQuietFields in game.html), and the "one
+// picture" hint at the top tells you to hold an arrow key, the one gesture
+// that lights every row in turn. Pure markup, no key presses, so this can
+// run at any point in the phase.
+async function checkXrayHintsNameQuietFieldsAndHoldKey(page) {
+  const hintTextByHeading = await page.evaluate(() => {
+    const result = {};
+    for (const section of document.querySelectorAll('#xray > section')) {
+      const heading = section.querySelector('h3');
+      const hint = section.querySelector('p.hint');
+      if (heading !== null && hint !== null) result[heading.textContent] = hint.textContent;
+    }
+    return result;
+  });
+
+  const updateHint = hintTextByHeading['5 · UPDATE — what changed in state'];
+  assertTrue(updateHint !== undefined,
+    'expected a p.hint under the "5 · UPDATE — what changed in state" heading');
+  assertTrue(updateHint.includes('stepCooldown') && updateHint.includes('notice.secondsLeft'),
+    'expected the "5 · UPDATE" hint to name both quiet fields, got "' + updateHint + '"');
+  console.log('PASS — the "5 · UPDATE" hint names the two quiet fields it leaves out, ' +
+    'stepCooldown and notice.secondsLeft');
+
+  const pictureHint = hintTextByHeading['the whole file, as one picture'];
+  assertTrue(pictureHint !== undefined,
+    'expected a p.hint under the "the whole file, as one picture" heading');
+  assertTrue(pictureHint.includes('Hold an arrow key'),
+    'expected the "one picture" hint to say to hold an arrow key, got "' + pictureHint + '"');
+  console.log('PASS — the "the whole file, as one picture" hint tells you to hold an arrow key');
+}
+
+// (v1.4) The "keyboard" row (row 0) knows the difference between a game key
+// and one of the X-ray's own: X, P and "." never reach INPUT, so naming one
+// there says so instead of pretending it went down the pipe. Pressing P
+// pauses the game (not a game key, no intent held, so the row stays dim);
+// a real game key afterward goes right back to naming it plainly.
+async function checkKeyboardRowNamesSkippedKeys(page) {
+  await tapKey(page, 'p'); // pauses; P is a panel key, not a game key
+  await page.waitForTimeout(50);
+  assertTrue((await getXrayLoopCounters(page)).paused === true,
+    'expected P to pause the game going into this check');
+
+  const afterP = await getPipeRows(page);
+  assertTrue(afterP[0].text.includes('not a game key, INPUT skips it'),
+    'expected the "keyboard" row to name P as skipped by INPUT, got "' + afterP[0].text + '"');
+  assertTrue(afterP[0].text.startsWith('│ '),
+    'expected the "keyboard" row to stay dim ("│ ") since no game intent is held, got "' +
+    afterP[0].text + '"');
+  console.log('PASS — pressing P (a panel key) left the "keyboard" row dim and named as ' +
+    'skipped by INPUT');
+
+  await tapKey(page, 'ArrowRight');
+  await page.waitForTimeout(50);
+  const afterArrow = await getPipeRows(page);
+  assertTrue(afterArrow[0].text.includes('last key you pressed: arrowright'),
+    'expected the "keyboard" row to name arrowright plainly, got "' + afterArrow[0].text + '"');
+  console.log('PASS — a real game key right after went back to naming it plainly');
+
+  await tapKey(page, 'p'); // resume, so the next check finds the game running
+  await page.waitForTimeout(50);
+}
+
 // (v1.3) Holding ArrowRight lights the keyboard/INPUT/intents rows (▶ and
 // class "on") and names the key and the intent it set; releasing it dims
 // them again (│, no class). The player only steps every few ticks, so this
@@ -759,6 +825,48 @@ async function checkArrowRightLightsPipeRows(page) {
   console.log('PASS — after walking a few tiles, the "3 · state" row named player.tileX');
 }
 
+// (v1.4) The "3 · state" row carries tense, not just a value: "this frame:
+// #" the tick a step actually lands, "timers only, last #" the ticks
+// between (only the quiet step cooldown moved), and "no change, last #"
+// once movement stops and that cooldown itself settles at zero. Holding a
+// key crosses the first two; sampling repeatedly is the only way to catch
+// both, since a single read lands on whichever tense the frame happens to
+// be in.
+async function checkStateRowTracksChangeTense(page) {
+  await page.keyboard.down('ArrowRight');
+  const samples = [];
+  for (let sampleIndex = 0; sampleIndex < 20; sampleIndex++) {
+    const rows = await getPipeRows(page);
+    samples.push(rows[4].text);
+    await page.waitForTimeout(15);
+  }
+  await page.keyboard.up('ArrowRight');
+
+  assertTrue(samples.some((text) => text.includes('this frame: #')),
+    'expected at least one sample of the "3 · state" row to read "this frame: #" while ' +
+    'ArrowRight was held');
+  assertTrue(samples.some((text) => text.includes('timers only, last #')),
+    'expected at least one sample of the "3 · state" row to read "timers only, last #" while ' +
+    'ArrowRight was held');
+  for (const text of samples) {
+    assertTrue(text.includes('player.tileX'),
+      'expected every sampled "3 · state" row to mention player.tileX, got "' + text + '"');
+  }
+  console.log('PASS — while ArrowRight was held, the "3 · state" row cycled through "this ' +
+    'frame: #" and "timers only, last #", every sample naming player.tileX');
+
+  await page.waitForTimeout(400); // the step cooldown finishes ticking down
+  const settled = await getPipeRows(page);
+  assertTrue(settled[4].text.includes('no change, last #'),
+    'expected the "3 · state" row to read "no change, last #" once movement and its step ' +
+    'cooldown settle, got "' + settled[4].text + '"');
+  assertTrue(settled[4].text.includes('player.tileX'),
+    'expected the settled "3 · state" row to still name player.tileX, got "' +
+    settled[4].text + '"');
+  console.log('PASS — once ArrowRight was released and the step cooldown finished, the "3 · ' +
+    'state" row read "no change, last #" and still named player.tileX');
+}
+
 // (v1.3) While paused, the "5 · UPDATE" row says PAUSED; pressing "." for
 // one step lights that same row (▶, class "on") on the exact frame the
 // step runs, and it goes back to reading PAUSED once that frame passes.
@@ -787,6 +895,34 @@ async function checkPipeUpdateRowShowsPauseAndStep(page) {
     'expected the "5 · UPDATE" row to read PAUSED again once the step frame passed, got "' +
     settled[3].text + '"');
   console.log('PASS — the "5 · UPDATE" row went back to PAUSED once the step frame passed');
+}
+
+// (v1.4) The "ask an AI" textarea starts hidden and stays that way until the
+// first click of a fresh page load copies something into it — checked here
+// with an actual reload, since once this same run clicks a button below,
+// there is no "before any click" moment left to check. (The other half —
+// hidden becoming false — is checked right after checkAskExplainButton
+// below, which does that first click.)
+async function checkAskTextareaHiddenOnFreshLoad(page) {
+  await page.reload();
+  await waitForCanvasReady(page);
+  assertTrue(await isXrayPanelHidden(page) === false,
+    'expected the panel-open choice to survive the reload (localStorage)');
+
+  const hiddenBeforeAnyClick = await page.evaluate(
+    () => document.getElementById('xrayAskText').hidden);
+  assertTrue(hiddenBeforeAnyClick === true,
+    'expected the "ask an AI" textarea hidden on a fresh load, before either button has ' +
+    'ever been clicked');
+  console.log('PASS — the "ask an AI" textarea started hidden on this fresh page load');
+
+  // Pause does not survive a reload; re-pause here so the very next check
+  // (checkAskExplainButton) finds the game exactly as it expects to: open
+  // and paused, ready for its own "resume, then walk" proof.
+  await tapKey(page, 'p');
+  await page.waitForTimeout(50);
+  assertTrue((await getXrayLoopCounters(page)).paused === true,
+    'expected to leave the game paused for the next check to resume');
 }
 
 // (v1.3) Clicking "copy: explain this frame" fills the textarea with a
@@ -837,6 +973,17 @@ async function checkAskExplainButton(page) {
     ' tile(s) east');
   console.log('PASS — focus returned to <body>, so the game still took keyboard input, ' +
     'walking ' + tilesMoved + ' tile(s) east');
+}
+
+// (v1.4) ...and the payoff half of the check above: once
+// checkAskExplainButton's click has actually fired, the textarea must have
+// un-hidden itself.
+async function checkAskTextareaVisibleAfterFirstClick(page) {
+  const hiddenAfterClick = await page.evaluate(
+    () => document.getElementById('xrayAskText').hidden);
+  assertTrue(hiddenAfterClick === false,
+    'expected the "ask an AI" textarea visible (hidden === false) right after a click');
+  console.log('PASS — the "ask an AI" textarea became visible right after the first click');
 }
 
 // (v1.3) Clicking "copy: draw this frame" replaces the textarea with a
@@ -901,9 +1048,14 @@ async function runXrayChecks(page, world) {
   await checkPauseKeysInertWithPanelHidden(page);
   await checkPauseDoesNotSurviveReload(page);
   await checkPipeDiagramShape(page);
+  await checkXrayHintsNameQuietFieldsAndHoldKey(page);
+  await checkKeyboardRowNamesSkippedKeys(page);
   await checkArrowRightLightsPipeRows(page);
+  await checkStateRowTracksChangeTense(page);
   await checkPipeUpdateRowShowsPauseAndStep(page);
+  await checkAskTextareaHiddenOnFreshLoad(page);
   await checkAskExplainButton(page);
+  await checkAskTextareaVisibleAfterFirstClick(page);
   await checkAskDrawButton(page);
   await checkClipboardReceivedPrompt(page);
 }
