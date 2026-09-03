@@ -17,6 +17,26 @@ wrong.** If a change makes the code more readable and the game slightly worse, *
 
 Say it back to yourself before every commit: **it's not for gameplay, it's for learning.**
 
+### 0a. Low floor, high ceiling *(added v1.5, from the maintainer)*
+
+Rule 0 says who the user is. This says how wide that user actually is, because the class is not
+one student. Some of them have never played a video game and will not be persuaded to; some of
+them will try to break the file within ten minutes of opening it. Both are the audience.
+
+- **Low floor.** A student who is not a gamer, and not yet a programmer, has to be able to get
+  somewhere real on the first sitting. That means the required path stays small, plain, and
+  finishable: ten sections, one number to change, a visible result. Nothing on that path is
+  allowed to assume they enjoy games or already know what a loop is.
+- **High ceiling.** A student who wants to push has to find something to push against, and it
+  should be *in the artifact*, not in a follow-up handout. The X-ray, the pause-and-step keys,
+  the "ask an AI about this frame" buttons, `CHANGE-ME.md`'s harder half and its extras all
+  exist for her.
+
+The two are not in tension as long as the ceiling is **opt-in**. Every advanced thing in this
+repo is behind a key press, a later section, or a numbered exercise — never in the way of the
+student who just wants to change the colour of grass. When a change would raise the floor to
+raise the ceiling, **it is the wrong change**, and §3a turns that into an actual line budget.
+
 ---
 
 ## 1. Why this exists
@@ -61,10 +81,55 @@ These are not preferences. A build that violates one is rejected.
 - All art is drawn with Canvas 2D primitives — rectangles, circles, text. **No image files, no
   sprite sheets, no base64 blobs.** Colored rectangles are correct and on-brief.
 
-**Size**
-- **1,200–1,800 lines** including comments and data. Hard ceiling **2,000**.
+**Size** *(revised v1.5 — see §3a for the reasoning and the measurement)*
+- **The required read — sections 1–10 — is 1,200–1,800 lines** including comments and data,
+  hard ceiling **2,000**. This is the budget that matters: it is what a student who has never
+  opened the file has to get through.
+- **The whole file, optional sections included, has a hard ceiling of 2,600 lines.** Anything
+  that pushes past the 1,800 above has to earn it by being *optional and removable* — its own
+  numbered section after `10 · BOOT`, proved deletable by `tools/check-xray-removable.mjs`.
 - No line longer than 100 characters.
 - No function longer than **40 lines**. If one gets longer, it is two ideas — split it.
+
+### 3a. Amendment (v1.5) — why the ceiling moved, and what it is actually protecting
+
+The v1.5 pass took the file to 1,916 lines and asked whether the 1,800 target should rise. Two
+findings settled it.
+
+**Performance is not the constraint, and now there is a number.** Measured in headless Chromium
+at 1366×650, calling the file's own functions two thousand times each: `update` 0.0004 ms,
+`render` 0.43 ms, `JSON.stringify(state)` 0.003 ms (twice a frame), `showXray` 0.04 ms with the
+panel open. The heaviest frame this file can produce — walking, timer running, X-ray open — is
+**0.48 ms of a 16.7 ms budget, under 3%**, and it holds a flat 60 fps in every combination. The
+same measurement on the 1,800-line version before the pass came out at 0.46 ms, a difference
+inside the noise. Parsing is a one-time 110 ms at load, on 72 KB. There is roughly 35× headroom.
+Line count is not a performance axis for a file this size and will not become one at 2,600.
+(§5 still lists performance work as a non-goal. This was a measurement to answer a question,
+not an optimisation.)
+
+**What the ceiling protects is reading time, and reading happens one section at a time.** The
+old single number treated the file as one sitting. It never was: `TEARDOWN.md` is six 10–15
+minute reads, each scoped to a section or two. So the budget is now split to match the way the
+artifact is used, and to match the shape the maintainer asked for — **a low floor and a high
+ceiling.**
+
+- **The floor is sections 1–10**, and it stays where it was. A student who has never played a
+  video game, let alone read one, meets exactly the ten sections and nothing else; the file
+  says so at the top of section 11 and `README.md` says so too. Two ways to measure it, both
+  comfortably inside the original band: **1,482 lines** from the top of the file to the
+  section-11 banner, which is what `tools/check.mjs` now reports as a separate PASS/FAIL, and
+  **1,350 lines** once the X-ray's `<aside>` and stylesheet are stripped as well, which is
+  what `tools/check-xray-removable.mjs` prints. The floor is the number to defend: the pass
+  that took the whole file to 1,916 moved it from 1,370 to 1,482 — about 110 lines, from the
+  middle of the band to the middle of the band.
+- **The ceiling is everything after `10 · BOOT`**, and it can grow. The X-ray earned its ~570
+  lines by being invisible until a student presses X and provably deletable without touching
+  the game. Anything else that wants room has to clear the same bar: optional, opt-in,
+  removable, and checked. That is what keeps a bigger file from raising the floor.
+
+The practical rule for the next agent: **never spend the 1–10 budget on something a beginner
+does not need.** If a feature is for the student who wants to push the limits, it goes after
+BOOT in its own removable section, and the total stays under 2,600.
 
 **Banned outright** (a `grep` for each must return nothing):
 `import ` · `require(` · `<script src` · `eval(` · `innerHTML =` · `setTimeout(` for game logic ·
@@ -144,7 +209,10 @@ Rules, so it stays a window onto the game and never becomes part of it:
 - **Delete section 11, the `<aside>`, and the four X-ray lines in LOOP, and the game is exactly
   the same.** Every X-ray constant lives inside section 11 for that reason, including its
   localStorage key.
-- All of §3's style rules apply to it unchanged. The file's target stays 1,200–1,800 lines.
+- All of §3's style rules apply to it unchanged. *(v1.5: the 1,200–1,800 target this rule
+  originally cited now applies to sections 1–10 only, and section 11 sits outside it —
+  see §3a. The rest of this bullet is unchanged: the X-ray pays for its lines by being
+  optional and removable, which is exactly the bar §3a sets.)*
 
 ---
 
@@ -255,13 +323,13 @@ Two are in the file now; four became exercises in `CHANGE-ME.md`; none of the P2
   at all, which is exactly why it is exercise A rather than a commit. Choosing the tone of
   three characters in a school artifact is also the maintainer's call, not an agent's.
 
-**The size constraint this pass moved.** `game.html` is 1,916 lines: over §3's 1,200–1,800
-target band, under its 2,000 ceiling, with the four tools green. That is the one hard number
-in this document the change crossed, and it is the maintainer's to settle — raise the band to
-~1,950 and note that the remaining headroom is 84 lines, or trim the pass back. Nothing else
-in §3 moved: no dependency, no build step, no line over 100 characters, no function over 40
-(`drawHud` hit 41 and was split, which is what §3 says to do), and the X-ray is still
-removable.
+**The size constraint this pass moved — and how it was settled.** `game.html` came out of
+this pass at 1,916 lines, past §3's old 1,200–1,800 band. Raised, on the maintainer's call,
+after the frame budget was measured rather than assumed: **§3 now budgets the required read
+and the whole file separately, and §3a records the measurement and the reasoning.** The
+required read is 1,482 lines, still mid-band. Nothing else in §3 moved: no dependency, no
+build step, no line over 100 characters, no function over 40 (`drawHud` hit 41 and was split,
+which is what §3 says to do), and the X-ray is still removable.
 
 ---
 
@@ -388,8 +456,12 @@ Mechanically checkable — run these before calling it done:
 - [ ] (v1.4) The prompt textarea is hidden until the first "ask an AI" click, then shown.
 - [ ] (v1.4) The UPDATE caption names `stepCooldown` and `notice.secondsLeft` as left out.
 - [ ] (v1.4) `game.html` is ≤ 1,800 lines and every student-facing line citation still holds.
-      *(v1.5 crossed the first half of this: the file is 1,916 lines. See §4d — the band is the
-      maintainer's call. The citation half still holds and is still checked.)*
+      *(Superseded in v1.5 by the two criteria below; the citation half still holds and is
+      still checked by `tools/check-doc-lines.mjs`.)*
+- [ ] (v1.5) The required read — top of the file through section 10 — is 1,200–1,800 lines,
+      and the whole file is ≤ 2,600. `tools/check.mjs` reports these as two separate checks.
+- [ ] (v1.5) Anything that took the whole file past 1,800 lives after `10 · BOOT` in its own
+      optional section and `tools/check-xray-removable.mjs` still passes.
 - [ ] (v1.5) Twelve alternating Left/Right taps ending on Right leave the player facing right,
       not left, and a tap shorter than one step is not dropped.
 - [ ] (v1.5) T starts the clock at 0:00 and shows it; T again hides it and it stops counting.

@@ -23,17 +23,29 @@ function report(passed, message) {
 }
 
 // ------------------------------------------------------------------
-// Check 1: line count <= 2000, and note whether it is in the 1200-1800 target
+// Check 1: the two line budgets of PRD §3, as revised by §3a. The one that
+// matters is the required read, sections 1-10: that is what a student who
+// has never opened the file has to get through, and it stays 1,200-1,800
+// (ceiling 2,000). Everything after 10 · BOOT is opt-in and removable, so
+// the whole file gets a looser ceiling of 2,600. Keeping them apart is the
+// mechanical half of "low floor, high ceiling" (PRD §0a).
 // ------------------------------------------------------------------
 function checkLineCount() {
   // A trailing newline makes split('\n') produce one extra empty element;
   // don't count that as a line.
   const lineCount = lines[lines.length - 1] === '' ? lines.length - 1 : lines.length;
-  const inTargetRange = lineCount >= 1200 && lineCount <= 1800;
+  report(lineCount <= 2600, 'whole file is ' + lineCount + ' lines (<= 2,600)');
+
+  // The required read ends where the first optional section begins. With no
+  // optional section at all, the required read is the whole file.
+  const xRayLineIndex = findBannerLineIndex('11 · X-RAY', 1);
+  const requiredReadLines = xRayLineIndex === -1 ? lineCount : xRayLineIndex - 1;
+  const inTargetRange = requiredReadLines >= 1200 && requiredReadLines <= 1800;
   const rangeNote = inTargetRange
     ? 'inside the 1,200-1,800 target'
-    : 'OUTSIDE the 1,200-1,800 target';
-  report(lineCount <= 2000, 'line count is ' + lineCount + ' (<= 2000), ' + rangeNote);
+    : 'OUTSIDE the 1,200-1,800 target — see PRD §3a before widening it';
+  report(requiredReadLines <= 2000 && inTargetRange,
+    'required read (sections 1-10) is ' + requiredReadLines + ' lines, ' + rangeNote);
 }
 
 // ------------------------------------------------------------------

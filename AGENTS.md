@@ -23,11 +23,35 @@ Concretely, when you catch yourself about to:
 - add a dependency, a build step, or a module → **don't**, it's banned in PRD §3
 - generalize something for a case that doesn't exist yet → **don't**, it's a teaching artifact
 
+## Low floor, high ceiling
+
+Read **PRD §0a** with §0; it was added after the first student playtest and it is the second
+rule that settles arguments. The class is not one student. Some have never played a video game;
+some will try to break the file in ten minutes. Both are the audience, and the way to serve both
+is to keep every advanced thing **opt-in** — behind a key press, a later section, or a numbered
+exercise — so it is never in the way of the student who just wants to recolour the grass.
+
+The line budget is the mechanical half of that rule, so it is now **two numbers, not one**
+(PRD §3, §3a):
+
+- **The required read — top of file through section 10 — is 1,200–1,800 lines.** This is the
+  floor and it is the number to defend. Currently 1,482.
+- **The whole file, optional sections included, is ≤ 2,600 lines.** Currently 1,916.
+
+Anything that takes the file past 1,800 has to earn it by being optional and *provably
+removable*: its own numbered section after `10 · BOOT`, with `check-xray-removable.mjs` still
+passing. Never spend the 1–10 budget on something a beginner does not need.
+
+Performance is not what these numbers protect — reading time is. It has been measured: the
+heaviest frame the file can produce is 0.48 ms of a 16.7 ms budget, under 3%, with ~35×
+headroom (PRD §3a). Do not cite performance as a reason to cut lines, and do not do performance
+work — §5 still lists it as a non-goal.
+
 ## Non-negotiables
 
 - One file: `game.html`. No build. No dependencies. Opens from `file://` with the network off.
 - Must run in **Microsoft Edge** — the school's managed devices — and Chrome. Nothing else.
-- ≤ 2,000 lines · ≤ 100 chars/line · ≤ 40 lines/function.
+- The two line budgets above · ≤ 100 chars/line · ≤ 40 lines/function.
 - The ten sections of PRD §4, in order, each with its numbered banner and its "What to look for" line.
 - **RENDER never mutates `state`.** The dev assertion that proves it ships in the file.
 - All four deliverables ship together. `game.html` alone is incomplete.
