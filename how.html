@@ -165,6 +165,32 @@
   .phase li {
     margin: 6px 0;
   }
+  /* A close-up is one idea from inside a phase: a label, then a picture,
+     a quote, or a short paragraph. Same small gold label as the date tag. */
+  .phase .closeup {
+    margin: 24px 0 6px;
+    color: #ffd75e;
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .phase pre.picture {
+    margin: 12px 0 14px;
+  }
+  .phase blockquote {
+    margin: 12px 0 14px;
+    padding: 6px 14px;
+    border-left: 2px solid #ffd75e;
+    color: #a8a8b8;
+    font-size: 13px;
+  }
+  .phase blockquote cite {
+    display: block;
+    margin-top: 6px;
+    color: #7a7a88;
+    font-size: 12px;
+    font-style: normal;
+  }
   footer {
     margin-top: 80px;
     padding-top: 24px;
@@ -195,6 +221,14 @@
   is wrong. Each phase is <article id="phase-N">. Good additions: a
   short quote from a session, a screenshot, a corrected time, one
   back-and-forth that taught something. Skip high-fidelity transcripts.
+
+  Second pass (Sep 2, night, Hawaiʻi time): the X-ray thread filled in
+  close-ups under phases 3, 4, 5 and 7, the ones it lived through, and
+  corrected the clock. Agent commits are stamped UTC; the maintainer's
+  merges are stamped -10:00. The first draft mixed the two and said
+  "three days" and "Sep 3". Every time on this page is now Hawaiʻi time,
+  taken from the merge commit on main. Phases 0, 1, 2 and 6 still want
+  their close-ups from the Cursor threads that lived them.
 -->
 
 <h1>A game, built out loud.</h1>
@@ -203,12 +237,13 @@
   A student asked <em>how are video games made?</em> The answer is one
   HTML file you can open from disk. This page is the time-lapse of how
   that file got written — by a teacher and a few long-running AI agents,
-  over three days in September 2026.
+  in about thirty hours on 1 and 2 September 2026.
 </p>
 
 <p class="hint">
-  First draft. Dates are real. The dialogue is summarized, not a
-  transcript. Other sessions will fill in the close-ups.
+  Second pass. Times are Hawaiʻi time, from git. The dialogue is
+  summarized, not a transcript. The X-ray phases have their close-ups;
+  the other phases are still waiting for theirs.
 </p>
 
 <!-- ========== ADEPT of the whole story ========== -->
@@ -251,7 +286,8 @@
     overnight. Other agents added a panel that shows the rules
     happening live, then rewrote the panel until it stopped lying
     to a first-time reader. Someone else pointed the classroom URL
-    at the game.
+    at the game. Then this page got written, and the people who cut
+    the window came back to fill in their part of it.
   </dd>
 
   <dt>Technical</dt>
@@ -260,7 +296,7 @@
     an optional eleventh · no build, no dependencies · PRs
     <a href="https://github.com/lpcode808/demo-openworld-howto-videogame/pull/2">#2</a>
     through
-    <a href="https://github.com/lpcode808/demo-openworld-howto-videogame/pull/7">#7</a>.
+    <a href="https://github.com/lpcode808/demo-openworld-howto-videogame/pull/8">#8</a>.
   </dd>
 </dl>
 
@@ -279,22 +315,31 @@ keyboard --> INPUT --> intents --> UPDATE --> state --> RENDER --> screen
 </pre>
 
 <p>
-  The build is that sentence, stretched across three days. Each box
-  below is a phase. Times are Hawaii time, because that is where the
-  classroom is.
+  The build is that sentence, stretched across a day and a half. Each
+  box below is a phase. Times are Hawaiʻi time, because that is where
+  the classroom is, and each one is when that piece landed on the main
+  branch.
 </p>
 
 <pre class="picture">
-Sep 1  3:40pm    the recipe          a teacher writes the rules
-Sep 1  ~4:00pm   the kitchen check   does a blank browser even work?
-Sep 1  evening   dinner              the game, in ten steps
-Sep 2  ~2:00am   the window          X-ray: watch the line run
-Sep 2  morning   freeze-frame        P pauses, . steps one tick
-Sep 2  afternoon teach the window    the reading guide mentions X
-Sep 2  evening   the window talks    a live diagram + "ask an AI"
-Sep 2  night     the classroom door  the site URL opens the game
-Sep 2  / Sep 3   five words that lied the panel stops misleading
+Sep 1  3:40pm    the recipe            a teacher writes the rules
+Sep 1  4:00pm    the kitchen check     does a blank browser even work?
+Sep 1  10:30pm   dinner                the game, in ten steps
+Sep 2  2:00am    the window            X-ray: watch the line run
+Sep 2  8:50am    freeze-frame          P pauses, . steps one tick
+Sep 2  9:10am    teach the window      the reading guide mentions X
+Sep 2  1:45pm    the window talks      a live diagram + "ask an AI"
+Sep 2  2:20pm    the classroom door    the site URL opens the game
+Sep 2  4:30pm    five sentences lied   the panel stops misleading
+Sep 2  9:30pm    this page             the time-lapse gets written
 </pre>
+
+<p class="hint">
+  Thirty hours, not three days. The first draft of this page said
+  three, because agents stamp their commits in UTC and Hawaiʻi is ten
+  hours behind, so an evening here reads as the next morning in the
+  log. Worth knowing the first time you read a git history.
+</p>
 
 <!-- ========== Three threads ========== -->
 
@@ -302,7 +347,8 @@ Sep 2  / Sep 3   five words that lied the panel stops misleading
 
 <p>
   That is the honest shape. Not a dozen people. Three long chats,
-  plus the afternoon a teacher wrote the rules.
+  plus the afternoon a teacher wrote the rules, plus the evening chat
+  that wrote this page.
 </p>
 
 <div class="threads">
@@ -317,17 +363,17 @@ Sep 2  / Sep 3   five words that lied the panel stops misleading
   <section class="thread">
     <h3>2 · The X-ray writers</h3>
     <p>
-      Sep 2 into Sep 3. A run of Claude Code sessions. They cut the
-      window, taught it to pause, made it explain itself, then
-      rewrote five sentences that were lying. Pull requests #3, #4,
-      #5, #7.
+      Sep 2, 2:00am to 4:30pm. A run of Claude Code sessions. They
+      cut the window, taught it to pause, made it explain itself,
+      then rewrote five sentences that were lying. Pull requests #3,
+      #4, #5, #7.
     </p>
   </section>
   <section class="thread">
     <h3>3 · The classroom URL</h3>
     <p>
-      Sep 2, late. A separate Cursor agent. The school link was
-      already live — it just opened the README. Now it opens the
+      Sep 2, about 2:00pm. A separate Cursor agent. The school link
+      was already live — it just opened the README. Now it opens the
       game. Pull request #6.
     </p>
   </section>
@@ -457,13 +503,75 @@ Sep 2  / Sep 3   five words that lied the panel stops misleading
     playthrough. The reading-guide line numbers had to be refreshed
     — a new section shoves every later line down.
   </p>
-  <!-- scaffold-phase-3: first X-ray screenshots, the three LOOP lines -->
+
+  <p class="closeup">Close-up · the whole hook is two snapshots</p>
+  <p>
+    The window needed a way to know what UPDATE changed, without
+    touching UPDATE. The trick: the game already turned
+    <code>state</code> into a string once a frame, right before
+    drawing, to prove that drawing changed nothing. The X-ray takes
+    one more string, right before the rules run, and compares the two.
+  </p>
+  <pre class="picture">
+one turn of the loop
+
+  snapshot A = JSON.stringify(state)      before UPDATE runs        (new)
+      │
+      │   UPDATE runs: none, one, or several times
+      ▼
+  snapshot B = JSON.stringify(state)      before RENDER runs        (already there)
+      │
+      │   RENDER runs
+      ▼
+  compare state against B                 different? the game stops (already there)
+
+  A against B    = everything UPDATE changed   →  the panel's "what changed" box
+  B against now  = everything RENDER changed   →  must always be nothing
+  </pre>
+  <p>
+    Nothing inside the rules is instrumented. The same string that
+    proves drawing is honest is also the complete record of what the
+    rules did. If you had wanted that record, you would have had to
+    take those two snapshots anyway.
+  </p>
+
+  <p class="closeup">Close-up · one line that got un-clevered</p>
+  <p>
+    The first draft of the diff merged the keys of the two snapshots
+    with a compact idiom — one line, and a good one on most projects.
+    It was rewritten the same night as a plain loop over each
+    object's keys, four dull lines. Not because the line was wrong.
+    The rule for this repo says a fifteen-year-old has to trace the
+    file, and a clever line costs them a minute the game does not
+    get back.
+  </p>
+  <blockquote>
+    X-RAY: boring key-union loop instead of Set spread; show whole
+    state at once
+    <cite>— a commit message inside pull request #3</cite>
+  </blockquote>
+
+  <p class="closeup">Close-up · the bolt-on promise, in the file's own words</p>
+  <blockquote>
+    Delete this section, the &lt;aside&gt; at the top, and the four
+    LOOP lines that call it: same game.
+    <cite>— the section 11 banner in game.html (it said three lines
+    that night; pause made it four)</cite>
+  </blockquote>
+  <p class="hint">
+    Side effect worth remembering: the new section pushed every later
+    line down by sixty to a hundred, and 55 line numbers in the two
+    reading guides went stale at once. A small checker for those
+    citations was written the same night, and it has caught drift on
+    every phase since.
+  </p>
+  <!-- scaffold-phase-3: first X-ray screenshots -->
 </article>
 
 <!-- ========== PHASE 4 ========== -->
 <article class="phase" id="phase-4">
   <header class="when">
-    <span class="tag">Phase 4 · Sep 2, morning · PR #4</span>
+    <span class="tag">Phase 4 · Sep 2, 8:50am · PR #4</span>
     <h3>Freeze one heartbeat</h3>
   </header>
   <p>
@@ -484,13 +592,42 @@ Sep 2  / Sep 3   five words that lied the panel stops misleading
     tools before each commit. That pattern repeats in the rest of
     this thread.
   </p>
-  <!-- scaffold-phase-4: pause-accumulator diagram, step demo -->
+
+  <p class="closeup">Close-up · why pause throws time away</p>
+  <p>
+    The loop keeps a small bank of unspent time. Each frame adds what
+    passed since the last one, then runs UPDATE once per sixtieth of
+    a second it can afford. Pause is one question asked of that bank,
+    before the spending starts:
+  </p>
+  <pre class="picture">
+every frame     time since last frame  →  into the bank
+                while the bank holds a whole slice (1/60 s): run UPDATE, spend one slice
+
+not paused      the bank fills and drains; UPDATE runs 0, 1 or 2 times a frame
+paused          this frame's time is thrown away; bank = 0; UPDATE never runs
+paused, then .  bank = exactly one slice; UPDATE runs once; then quiet again
+  </pre>
+  <p>
+    The whole decision is five lines in section 11. The reason it
+    throws time away instead of saving it: if paused frames kept
+    filling the bank, ten seconds of pause would be six hundred
+    updates owed, and the game would run all of them in the one frame
+    after you resume. You would teleport. Drawing never pauses, which
+    is why the picture stays on screen while the world holds still.
+  </p>
+  <p class="hint">
+    Also why <kbd>P</kbd> and <kbd>.</kbd> do nothing unless the panel
+    is open, and why hiding the panel un-pauses: the panel is the only
+    place that says PAUSED. No explanation on screen, no pause.
+  </p>
+  <!-- scaffold-phase-4: a step demo, frame by frame -->
 </article>
 
 <!-- ========== PHASE 5 ========== -->
 <article class="phase" id="phase-5">
   <header class="when">
-    <span class="tag">Phase 5 · Sep 2, afternoon into evening · docs, then PR #5</span>
+    <span class="tag">Phase 5 · Sep 2, 9:10am to 1:45pm · docs, then PR #5</span>
     <h3>The window has to explain itself</h3>
   </header>
   <p>
@@ -507,8 +644,8 @@ Sep 2  / Sep 3   five words that lied the panel stops misleading
     <kbd>.</kbd> so those rules stay true after the next edit.
   </p>
   <p>
-    Evening: the panel was accurate and terse, and that was the
-    problem. A student who did not already know the arrow could not
+    Then, by late morning: the panel was accurate and terse, and that
+    was the problem. A student who did not already know the arrow could not
     learn it from five boxes of field names. v1.3 adds a seven-row
     live diagram, a one-line caption under each box, and two
     buttons that copy this exact moment into a question for any AI.
@@ -523,13 +660,67 @@ Sep 2  / Sep 3   five words that lied the panel stops misleading
     inside the window. Budget warning they left: 1,798 of 1,800
     target lines. Anything else has to pay for itself.
   </p>
-  <!-- scaffold-phase-5: 1366x650 scroll shots, the clipboard gesture -->
+
+  <p class="closeup">Close-up · the seven rows, mid-step</p>
+  <p>
+    Hold the right arrow with the panel open and the top box reads
+    like this. A filled marker means that stage did something on the
+    frame you are looking at; a bar means it sat still. Both signals
+    say the same thing, so it reads on a projector where the gold
+    blurs into the grey.
+  </p>
+  <pre class="picture">
+▶ keyboard    last key you pressed: arrowright
+▶ 4 · INPUT   writing that down in intents
+▶ intents     moveRight
+▶ 5 · UPDATE  updates this frame: 1
+│ 3 · state   timers only, last #812 player.tileX 5 → 6
+▶ 7 · RENDER  frame 812 drawn, state untouched
+▶ screen      what you are looking at
+  </pre>
+  <p class="hint">
+    One rule kept the diagram honest: it computes nothing. Every word
+    on it is a value one of the five boxes below already shows, said
+    shorter. (The state row's wording is from phase 7; that day it
+    said less.)
+  </p>
+
+  <p class="closeup">Close-up · a test that could not fail</p>
+  <p>
+    The copy buttons use the one clipboard call that behaves the same
+    from a double-clicked file in Edge and in Chrome. If the browser
+    refuses, the text stays selected for <kbd>Ctrl+C</kbd>. The
+    robot test for it was first written to click the button from
+    inside the page, by script. It passed. It was also worthless: a
+    script clicking is not a person clicking, and the clipboard only
+    obeys a person. The check was rewritten to press the button
+    through the browser, the way a hand does, and only then did a pass
+    mean anything.
+  </p>
+
+  <p class="closeup">Close-up · seven numbers that were off by one</p>
+  <p>
+    Adding the diagram put 74 lines above the script, so every line
+    number in both reading guides shifted by 74. The shift was applied
+    by arithmetic, then read back by hand. Reading it back found
+    something older: seven numbers written in prose, where the
+    automatic checker never looked, had each been off by one since the
+    build. One was the map row a student is told to edit first. Each
+    would have sent someone to the wrong line and let them think they
+    had misread the code.
+  </p>
+  <p class="hint">
+    Measured, not guessed: before the panel learned to scroll itself,
+    a school laptop at 1366×650 had to scroll the page 1,300 pixels to
+    see the whole panel, with the game sliding off the top. After: 678.
+  </p>
+  <!-- scaffold-phase-5: 1366x650 before/after screenshots -->
 </article>
 
 <!-- ========== PHASE 6 ========== -->
 <article class="phase" id="phase-6">
   <header class="when">
-    <span class="tag">Phase 6 · Sep 2 night / Sep 3 · PR #6</span>
+    <span class="tag">Phase 6 · Sep 2, 2:20pm · PR #6</span>
     <h3>The classroom door was already open</h3>
   </header>
   <p>
@@ -557,7 +748,7 @@ Sep 2  / Sep 3   five words that lied the panel stops misleading
 <!-- ========== PHASE 7 ========== -->
 <article class="phase" id="phase-7">
   <header class="when">
-    <span class="tag">Phase 7 · Sep 2 afternoon / Sep 3 · PR #7</span>
+    <span class="tag">Phase 7 · Sep 2, 4:30pm · PR #7</span>
     <h3>Five sentences that were lying</h3>
   </header>
   <p>
@@ -591,7 +782,94 @@ Sep 2  / Sep 3   five words that lied the panel stops misleading
     eyeball there: the widest diagram row is 54 characters, and a
     fat scrollbar plus Courier New might clip it.
   </p>
-  <!-- scaffold-phase-7: the five screenshot states, rejected ideas -->
+
+  <p class="closeup">Close-up · why two readers who do not talk</p>
+  <p>
+    One reader was told to be fifteen. One was told to be someone who
+    reviews learning software. Neither saw the other's notes, and
+    neither saw the notes from the screenshot pass. If two strangers
+    trip over the same sentence unprompted, that is evidence about the
+    sentence, not about the readers. Agreement was the bar for
+    "certain." The other three findings were judgement calls and are
+    labelled that way in the spec.
+  </p>
+
+  <p class="closeup">Close-up · the top finding, before and after</p>
+  <pre class="picture">
+after pressing P
+
+  before   │ keyboard    last key you pressed: p
+           │ 4 · INPUT   nothing to write down       ← reads as: p went in and vanished
+
+  after    │ keyboard    p — not a game key, INPUT skips it
+           │ 4 · INPUT   nothing to write down       ← reads as: INPUT never heard it
+  </pre>
+  <p>
+    Same markers, same facts. Six words changed, and the panel stopped
+    teaching that every key goes down the pipe. The decision uses the
+    game's own list of keys it listens for, so the panel cannot drift
+    from INPUT if that list ever changes.
+  </p>
+
+  <p class="closeup">Close-up · three tenses for one row</p>
+  <p>
+    The state row had two states and needed three. "This frame:" when
+    a real change just landed in the log. "Timers only, last …" when
+    the rules ran and moved two per-step timers the log skips on
+    purpose, which is most frames while walking. "No change, last …"
+    when nothing at all moved, which is every paused frame. The
+    difference between the last two is one comparison: did snapshot A
+    differ from snapshot B at all. That comparison already existed.
+  </p>
+
+  <p class="closeup">Close-up · two things they said no to</p>
+  <ul>
+    <li>Rewording the UPDATE row on the single frame a <kbd>.</kbd>
+        step runs. That frame lasts sixteen milliseconds. Nobody can
+        read it, and the state row plus the log already show the step
+        afterwards.</li>
+    <li>Putting the five detail boxes in file order, 3-4-5-6-7. It
+        would separate UPDATE from the COLLIDE box that explains why
+        UPDATE let you step or not. The arrow's order won; the caption
+        explains the numbers instead.</li>
+  </ul>
+  <p class="hint">
+    A smaller honesty note from the same pass: after stripping the
+    window, the leftover game is 1,242 lines now, one fewer than phase
+    5 quoted, because one trimmed comment sat outside the window. So
+    the earlier "byte-identical" claim stopped being true, and the
+    handoff says so rather than letting it stand.
+  </p>
+  <!-- scaffold-phase-7: the five screenshot states -->
+</article>
+
+<!-- ========== PHASE 8 ========== -->
+<article class="phase" id="phase-8">
+  <header class="when">
+    <span class="tag">Phase 8 · Sep 2, 9:30pm · PR #8, then a second pass</span>
+    <h3>The time-lapse itself</h3>
+  </header>
+  <p>
+    A Cursor agent wrote the first draft of this page in one evening
+    session: the ADEPT frame, the three threads, the phases, and a
+    note under each one saying what a later session should add. It
+    linked the page from the help line under the game canvas without
+    moving a single line number in the reading guide.
+  </p>
+  <p>
+    The same night, the X-ray thread came back and filled in phases
+    3, 4, 5 and 7, the ones it had lived through, from its own handoff
+    notes, commit messages and the code. It also fixed the clock: the
+    first draft read agent timestamps as local time and said three
+    days. It was thirty hours.
+  </p>
+  <p class="hint">
+    Test: this page was opened in headless Chromium at 1366×650 before
+    and after, checked for horizontal overflow and console output, and
+    the maintainer tools were re-run to show <code>game.html</code>
+    did not change. Nobody has opened any of this in Edge yet.
+  </p>
+  <!-- scaffold-phase-8: the Cursor session's screenshots -->
 </article>
 
 <!-- ========== Tests, as their own idea ========== -->
@@ -639,10 +917,11 @@ Sep 2  / Sep 3   five words that lied the panel stops misleading
 </p>
 
 <ul>
-  <li>A quote or two from an agent thread, if it teaches.</li>
+  <li>Close-ups under phases 0, 1, 2 and 6, from the Cursor threads
+      that lived them. Phases 3, 4, 5 and 7 have theirs.</li>
   <li>A screenshot under the phase it belongs to.</li>
-  <li>A correction. Times are from git and the handoff file, not
-      from sitting in the room.</li>
+  <li>Another correction, if you find one. The times were wrong once
+      already, and they came from git, not from sitting in the room.</li>
   <li>The Edge-on-a-school-laptop result, when someone finally
       does it.</li>
 </ul>
@@ -665,7 +944,8 @@ Sep 2  / Sep 3   five words that lied the panel stops misleading
   <p>
     ADEPT framing from
     <a href="https://betterexplained.com/articles/adept-method/">Kalid Azad / BetterExplained</a>.
-    First draft, 3 September 2026.
+    First draft the evening of 2 September 2026, Hawaiʻi time. X-ray
+    close-ups and corrected times added the same night.
   </p>
 </footer>
 
