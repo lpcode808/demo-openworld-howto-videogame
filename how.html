@@ -3,8 +3,10 @@
 <head>
 <meta charset="utf-8">
 <title>How this was made — Open World How-To</title>
-<!-- Same empty icon as game.html: no missing-favicon error on a school machine. -->
-<link rel="icon" href="data:,">
+<!-- Tab icon: a tiny SVG drawn right here, grass, water, gold player. Line breaks are ignored. -->
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8'>
+<rect width='8' height='8' fill='%235cab4a'/><rect y='6' width='8' height='2' fill='%233a7bd5'/>
+<rect x='3' y='3' width='2' height='2' fill='%23ffd75e'/></svg>">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
   /* Same house as game.html: dark room, gold for "this is lit", grey for rest.
@@ -66,6 +68,11 @@
     font-weight: normal;
     color: #eee;
   }
+  .takeaway {
+    margin: 6px 0 0;
+    color: #ddd;
+    font-size: 15px;
+  }
   p, li {
     color: #c8c8d0;
     font-size: 14px;
@@ -90,6 +97,35 @@
   .hint {
     color: #7a7a88;
     font-size: 13px;
+  }
+  /* Jump list right under the lede. Boxed like .adept, two columns when wide. */
+  .toc {
+    background: #15151f;
+    border: 1px solid #2a2a3a;
+    padding: 16px 18px;
+    margin: 28px 0;
+    font-size: 13px;
+  }
+  .toc-head {
+    margin: 0 0 8px;
+    color: #ffd75e;
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .toc ol {
+    margin: 0;
+    padding-left: 20px;
+    color: #7a7a88;
+  }
+  .toc li {
+    margin: 4px 0;
+  }
+  @media (min-width: 720px) {
+    .toc ol {
+      columns: 2;
+      column-gap: 24px;
+    }
   }
   .adept, .phase, .thread, pre.picture {
     background: #15151f;
@@ -165,14 +201,22 @@
   .phase li {
     margin: 6px 0;
   }
-  /* A close-up is one idea from inside a phase: a label, then a picture,
-     a quote, or a short paragraph. Same small gold label as the date tag. */
-  .phase .closeup {
-    margin: 24px 0 6px;
+  /* A close-up is one idea from inside a phase: a picture, a quote, or a
+     short paragraph, folded shut behind its own gold label. Click to open. */
+  details.closeup {
+    margin: 18px 0 0;
+    padding-top: 10px;
+    border-top: 1px solid #2a2a3a;
+  }
+  details.closeup summary {
     color: #ffd75e;
     font-size: 11px;
     letter-spacing: 0.08em;
     text-transform: uppercase;
+    cursor: pointer;
+  }
+  details.closeup summary:hover {
+    color: #fff3b0;
   }
   .phase pre.picture {
     margin: 12px 0 14px;
@@ -229,6 +273,10 @@
   "three days" and "Sep 3". Every time on this page is now Hawaiʻi time,
   taken from the merge commit on main. Phases 0, 1, 2 and 6 still want
   their close-ups from the Cursor threads that lived them.
+
+  Third pass (3 September, Hawaiʻi time): skim pass. Contents list,
+  one-line takeaways, folded close-ups, labelled hints, bullets. No
+  facts changed.
 -->
 
 <h1>A game, built out loud.</h1>
@@ -241,10 +289,30 @@
 </p>
 
 <p class="hint">
-  Second pass. Times are Hawaiʻi time, from git. The dialogue is
+  Third pass. Times are Hawaiʻi time, from git. The dialogue is
   summarized, not a transcript. The X-ray phases have their close-ups;
-  the other phases are still waiting for theirs.
+  the other phases are still waiting for theirs. Close-ups are folded;
+  click one to open it.
 </p>
+
+<nav class="toc" aria-label="On this page">
+  <p class="toc-head">On this page</p>
+  <ol>
+    <li><a href="#adept">The whole story</a></li>
+    <li><a href="#pictures">The two pictures</a></li>
+    <li><a href="#threads">Three agent threads</a></li>
+    <li><a href="#phase-0">Phase 0 · Someone writes the recipe first</a></li>
+    <li><a href="#phase-1">Phase 1 · Does a blank browser even do this?</a></li>
+    <li><a href="#phase-2">Phase 2 · Overnight: dinner, one bowl at a time</a></li>
+    <li><a href="#phase-3">Phase 3 · Cut a window in the kitchen wall</a></li>
+    <li><a href="#phase-4">Phase 4 · Freeze one heartbeat</a></li>
+    <li><a href="#phase-5">Phase 5 · The window has to explain itself</a></li>
+    <li><a href="#phase-6">Phase 6 · The classroom door was already open</a></li>
+    <li><a href="#phase-7">Phase 7 · Five sentences that were lying</a></li>
+    <li><a href="#phase-8">Phase 8 · The time-lapse itself</a></li>
+    <li><a href="#tests">How they knew it worked</a></li>
+  </ol>
+</nav>
 
 <!-- ========== ADEPT of the whole story ========== -->
 
@@ -346,9 +414,8 @@ Sep 2  9:30pm    this page             the time-lapse gets written
 <h2 id="threads">Three agent threads</h2>
 
 <p>
-  That is the honest shape. Not a dozen people. Three long chats,
-  plus the afternoon a teacher wrote the rules, plus the evening chat
-  that wrote this page.
+  Not a dozen people. Three long chats, plus the afternoon a teacher
+  wrote the rules, plus the evening chat that wrote this page.
 </p>
 
 <div class="threads">
@@ -357,7 +424,8 @@ Sep 2  9:30pm    this page             the time-lapse gets written
     <p>
       Sep 1, evening. One Cursor cloud agent, following the spec
       step by step. Result: a playable file and the two reading
-      guides. Pull request #2.
+      guides. Pull request #2 (a pull request is one batch of
+      changes, sent in for review).
     </p>
   </section>
   <section class="thread">
@@ -384,6 +452,10 @@ Sep 2  9:30pm    this page             the time-lapse gets written
   <header class="when">
     <span class="tag">Phase 0 · Sep 1, 3:40pm</span>
     <h3>Someone writes the recipe first</h3>
+    <p class="takeaway">
+      A teacher wrote the rules before any agent wrote code. Readers
+      first, players second.
+    </p>
   </header>
   <p>
     Before any agent typed a game, a teacher wrote the rules. That
@@ -408,7 +480,7 @@ Sep 2  9:30pm    this page             the time-lapse gets written
         adds them.</li>
   </ul>
   <p class="hint">
-    Why this phase: agents wander without a spine. The overnight
+    <strong>Why:</strong> agents wander without a spine. The overnight
     build was told to follow section 9 of that file, in order, and
     commit after each step.
   </p>
@@ -420,6 +492,10 @@ Sep 2  9:30pm    this page             the time-lapse gets written
   <header class="when">
     <span class="tag">Phase 1 · Sep 1, about 4:00pm · PR #1</span>
     <h3>Does a blank browser even do this?</h3>
+    <p class="takeaway">
+      A short test proved Chrome could run the game's basics before
+      any game code existed.
+    </p>
   </header>
   <p>
     The game did not exist yet. A short agent session checked the
@@ -433,8 +509,9 @@ Sep 2  9:30pm    this page             the time-lapse gets written
     is the browser talking to itself, not a bug in the game.
   </p>
   <p class="hint">
-    Test: a six-check smoke page, movement and save/load on screen.
-    Nothing from that page was kept — it was not a deliverable.
+    <strong>Tested:</strong> a six-check smoke page, movement and
+    save/load on screen. Nothing from that page was kept — it was not
+    a deliverable.
   </p>
   <!-- scaffold-phase-1: env-setup thread, smoke-page recording -->
 </article>
@@ -444,6 +521,10 @@ Sep 2  9:30pm    this page             the time-lapse gets written
   <header class="when">
     <span class="tag">Phase 2 · Sep 1 evening, merged 10:32pm · PR #2</span>
     <h3>Overnight: dinner, one bowl at a time</h3>
+    <p class="takeaway">
+      One agent followed the spec step by step overnight and built
+      the whole playable game.
+    </p>
   </header>
   <p>
     This is the first of the three long threads. A Cursor cloud
@@ -470,7 +551,7 @@ Sep 2  9:30pm    this page             the time-lapse gets written
     checks that name a mistyped map row instead of failing silently.
   </p>
   <p class="hint">
-    Tests they actually ran: 1,222 lines, no line over 100
+    <strong>Tested:</strong> 1,222 lines, no line over 100
     characters, no banned string, all ten banners, a real-Chrome
     playthrough of three quests / both maps / save / reload in
     35 seconds. Edge was not on the machine. Still isn't, as of
@@ -484,27 +565,41 @@ Sep 2  9:30pm    this page             the time-lapse gets written
   <header class="when">
     <span class="tag">Phase 3 · Sep 2, about 2:00am · PR #3</span>
     <h3>Cut a window in the kitchen wall</h3>
+    <p class="takeaway">
+      A bolt-on panel now shows the game's rules running live,
+      without changing the game itself.
+    </p>
   </header>
   <p>
     Playing the game still hid the lesson. The second thread starts
     here: an optional eleventh section, opened with <kbd>X</kbd>,
-    that shows the factory line live. Intents, a log of what just
-    changed, the tile you face, the whole of <code>state</code>,
-    the heartbeat.
+    that shows the factory line live. What it shows:
   </p>
+  <ul>
+    <li>Intents</li>
+    <li>A log of what just changed</li>
+    <li>The tile you face</li>
+    <li>The whole of <code>state</code></li>
+    <li>The heartbeat</li>
+  </ul>
   <p>
     The important constraint, said out loud: delete section 11, the
     side panel, and a few lines in the loop, and the game is
     exactly the same. The window is bolted on. It is not the house.
   </p>
   <p class="hint">
-    Why: a student should see the pipe while walking, not only by
-    reading. Test: the same mechanical checks, plus a headless
-    playthrough. The reading-guide line numbers had to be refreshed
-    — a new section shoves every later line down.
+    <strong>Why:</strong> a student should see the pipe while
+    walking, not only by reading.
+  </p>
+  <p class="hint">
+    <strong>Tested:</strong> the same mechanical checks, plus a run
+    by a headless browser (one with no window, driven by a script).
+    The reading-guide line numbers had to be refreshed — a new
+    section shoves every later line down.
   </p>
 
-  <p class="closeup">Close-up · the whole hook is two snapshots</p>
+  <details class="closeup">
+  <summary>Close-up · the whole hook is two snapshots</summary>
   <p>
     The window needed a way to know what UPDATE changed, without
     touching UPDATE. The trick: the game already turned
@@ -534,8 +629,10 @@ one turn of the loop
     rules did. If you had wanted that record, you would have had to
     take those two snapshots anyway.
   </p>
+  </details>
 
-  <p class="closeup">Close-up · one line that got un-clevered</p>
+  <details class="closeup">
+  <summary>Close-up · one line that got un-clevered</summary>
   <p>
     The first draft of the diff merged the keys of the two snapshots
     with a compact idiom — one line, and a good one on most projects.
@@ -550,8 +647,10 @@ one turn of the loop
     state at once
     <cite>— a commit message inside pull request #3</cite>
   </blockquote>
+  </details>
 
-  <p class="closeup">Close-up · the bolt-on promise, in the file's own words</p>
+  <details class="closeup">
+  <summary>Close-up · the bolt-on promise, in the file's own words</summary>
   <blockquote>
     Delete this section, the &lt;aside&gt; at the top, and the four
     LOOP lines that call it: same game.
@@ -559,12 +658,13 @@ one turn of the loop
     that night; pause made it four)</cite>
   </blockquote>
   <p class="hint">
-    Side effect worth remembering: the new section pushed every later
-    line down by sixty to a hundred, and 55 line numbers in the two
+    <strong>Note:</strong> the new section pushed every later line
+    down by sixty to a hundred, and 55 line numbers in the two
     reading guides went stale at once. A small checker for those
     citations was written the same night, and it has caught drift on
     every phase since.
   </p>
+  </details>
   <!-- scaffold-phase-3: first X-ray screenshots -->
 </article>
 
@@ -573,27 +673,35 @@ one turn of the loop
   <header class="when">
     <span class="tag">Phase 4 · Sep 2, 8:50am · PR #4</span>
     <h3>Freeze one heartbeat</h3>
+    <p class="takeaway">
+      P freezes the world, . runs one update, and paused time is
+      thrown away on purpose.
+    </p>
   </header>
   <p>
-    Sixty frames a second is too fast to watch. So: <kbd>P</kbd>
-    freezes the world (drawing keeps going), and <kbd>.</kbd> runs
-    exactly one update. Resume does not fast-forward through a pile
-    of leftover time — the clock throws those seconds away on
-    purpose.
+    Sixty frames a second is too fast to watch. So:
   </p>
+  <ul>
+    <li><kbd>P</kbd> — freezes the world (drawing keeps going).</li>
+    <li><kbd>.</kbd> — runs exactly one update.</li>
+    <li><strong>Resume</strong> — does not fast-forward through a
+        pile of leftover time. The clock throws those seconds away
+        on purpose.</li>
+  </ul>
   <p>
     Pause is not saved. Only "is the panel open?" survives a
     reload. Hide the panel and the world starts again, so a frozen
     game can never sit there with no explanation.
   </p>
   <p class="hint">
-    How this one was staffed, roughly: a stronger model wrote the
-    spec and judged; a cheaper model typed; the session re-ran the
-    tools before each commit. That pattern repeats in the rest of
-    this thread.
+    <strong>Staffing:</strong> a stronger model wrote the spec and
+    judged; a cheaper model typed; the session re-ran the tools
+    before each commit. That pattern repeats in the rest of this
+    thread.
   </p>
 
-  <p class="closeup">Close-up · why pause throws time away</p>
+  <details class="closeup">
+  <summary>Close-up · why pause throws time away</summary>
   <p>
     The loop keeps a small bank of unspent time. Each frame adds what
     passed since the last one, then runs UPDATE once per sixtieth of
@@ -617,10 +725,12 @@ paused, then .  bank = exactly one slice; UPDATE runs once; then quiet again
     is why the picture stays on screen while the world holds still.
   </p>
   <p class="hint">
-    Also why <kbd>P</kbd> and <kbd>.</kbd> do nothing unless the panel
-    is open, and why hiding the panel un-pauses: the panel is the only
-    place that says PAUSED. No explanation on screen, no pause.
+    <strong>Note:</strong> also why <kbd>P</kbd> and <kbd>.</kbd> do
+    nothing unless the panel is open, and why hiding the panel
+    un-pauses: the panel is the only place that says PAUSED. No
+    explanation on screen, no pause.
   </p>
+  </details>
   <!-- scaffold-phase-4: a step demo, frame by frame -->
 </article>
 
@@ -629,39 +739,45 @@ paused, then .  bank = exactly one slice; UPDATE runs once; then quiet again
   <header class="when">
     <span class="tag">Phase 5 · Sep 2, 9:10am to 1:45pm · docs, then PR #5</span>
     <h3>The window has to explain itself</h3>
+    <p class="takeaway">
+      The panel gained a live diagram, captions, and copy buttons,
+      so it teaches instead of just showing.
+    </p>
   </header>
-  <p>
-    A user test found the gap that mattered: the panel existed, and
-    the student guide never mentioned it. Someone could do all six
-    reads and never press <kbd>X</kbd>. So the guides got a "before
-    you start" pointer, and the README grew the new keys. The game
-    file was not touched in that hour.
-  </p>
-  <p>
-    Then they built a proof that the window really unbolts: a tool
-    strips section 11 from a copy and plays the leftover game. And
-    they taught a robot to press <kbd>X</kbd>, <kbd>P</kbd>, and
-    <kbd>.</kbd> so those rules stay true after the next edit.
-  </p>
-  <p>
-    Then, by late morning: the panel was accurate and terse, and that
-    was the problem. A student who did not already know the arrow could not
-    learn it from five boxes of field names. v1.3 adds a seven-row
-    live diagram, a one-line caption under each box, and two
-    buttons that copy this exact moment into a question for any AI.
-    The panel learned to scroll itself so a school laptop does not
-    lose the game off the bottom of the screen.
-  </p>
+  <ul>
+    <li><strong>9:10am, the guide fix</strong> — a user test found
+        the gap: the panel existed, but the student guide never
+        mentioned it. Someone could do all six reads and never press
+        <kbd>X</kbd>. The guides got a "before you start" pointer,
+        and the README grew the new keys. The game file itself was
+        not touched.</li>
+    <li><strong>Proof the window unbolts</strong> — a tool strips
+        section 11 from a copy and plays the leftover game. A robot
+        was taught to press <kbd>X</kbd>, <kbd>P</kbd>, and
+        <kbd>.</kbd>, so those rules stay true after the next
+        edit.</li>
+    <li><strong>v1.3: the panel explains itself</strong> — by late
+        morning the panel was accurate and terse, and that was the
+        problem: a student who did not already know the arrow could
+        not learn it from five boxes of field names. v1.3 adds a
+        seven-row live diagram, a one-line caption under each box,
+        and two buttons that copy this exact moment into a question
+        for any AI. The panel also learned to scroll itself so a
+        school laptop does not lose the game off the bottom of the
+        screen.</li>
+  </ul>
   <p class="hint">
-    Tests: four tools, all green. Playthrough 36 checks, 28 seconds,
-    zero console lines, run three times. After stripping the X-ray,
-    the leftover game was still 1,243 lines — byte-identical to
-    before this evening. That is the real proof the new words stayed
-    inside the window. Budget warning they left: 1,798 of 1,800
-    target lines. Anything else has to pay for itself.
+    <strong>Tested:</strong> four tools, all green. Playthrough 36
+    checks, 28 seconds, zero console lines, run three times. After
+    stripping the X-ray, the leftover game was still 1,243 lines —
+    byte-identical to before this evening. That is the real proof
+    the new words stayed inside the window. Budget warning they
+    left: 1,798 of 1,800 target lines. Anything else has to pay for
+    itself.
   </p>
 
-  <p class="closeup">Close-up · the seven rows, mid-step</p>
+  <details class="closeup">
+  <summary>Close-up · the seven rows, mid-step</summary>
   <p>
     Hold the right arrow with the panel open and the top box reads
     like this. A filled marker means that stage did something on the
@@ -679,13 +795,15 @@ paused, then .  bank = exactly one slice; UPDATE runs once; then quiet again
 ▶ screen      what you are looking at
   </pre>
   <p class="hint">
-    One rule kept the diagram honest: it computes nothing. Every word
-    on it is a value one of the five boxes below already shows, said
-    shorter. (The state row's wording is from phase 7; that day it
-    said less.)
+    <strong>Note:</strong> one rule kept the diagram honest: it
+    computes nothing. Every word on it is a value one of the five
+    boxes below already shows, said shorter. (The state row's
+    wording is from phase 7; that day it said less.)
   </p>
+  </details>
 
-  <p class="closeup">Close-up · a test that could not fail</p>
+  <details class="closeup">
+  <summary>Close-up · a test that could not fail</summary>
   <p>
     The copy buttons use the one clipboard call that behaves the same
     from a double-clicked file in Edge and in Chrome. If the browser
@@ -697,8 +815,10 @@ paused, then .  bank = exactly one slice; UPDATE runs once; then quiet again
     through the browser, the way a hand does, and only then did a pass
     mean anything.
   </p>
+  </details>
 
-  <p class="closeup">Close-up · seven numbers that were off by one</p>
+  <details class="closeup">
+  <summary>Close-up · seven numbers that were off by one</summary>
   <p>
     Adding the diagram put 74 lines above the script, so every line
     number in both reading guides shifted by 74. The shift was applied
@@ -709,10 +829,12 @@ paused, then .  bank = exactly one slice; UPDATE runs once; then quiet again
     would have sent someone to the wrong line and let them think they
     had misread the code.
   </p>
+  </details>
   <p class="hint">
-    Measured, not guessed: before the panel learned to scroll itself,
-    a school laptop at 1366×650 had to scroll the page 1,300 pixels to
-    see the whole panel, with the game sliding off the top. After: 678.
+    <strong>Note:</strong> measured, not guessed: before the panel
+    learned to scroll itself, a school laptop at 1366×650 had to
+    scroll the page 1,300 pixels to see the whole panel, with the
+    game sliding off the top. After: 678.
   </p>
   <!-- scaffold-phase-5: 1366x650 before/after screenshots -->
 </article>
@@ -722,25 +844,29 @@ paused, then .  bank = exactly one slice; UPDATE runs once; then quiet again
   <header class="when">
     <span class="tag">Phase 6 · Sep 2, 2:20pm · PR #6</span>
     <h3>The classroom door was already open</h3>
+    <p class="takeaway">
+      The school link already worked. It just needed to point at the
+      game, not the README.
+    </p>
   </header>
-  <p>
-    Third thread. The GitHub Pages URL was already publishing the
-    repo. It rendered the README — "download and double-click" —
-    and never mentioned that <code>game.html</code> was sitting
-    right there, playable. That is why it felt like the game was
-    not on the web.
-  </p>
-  <p>
-    Fix: a tiny <code>index.html</code> that redirects to the game.
-    The README's first link becomes "play it here." The spec adds
-    one sentence: Pages is extra, not instead. The file on disk
-    still opens with the network off.
-  </p>
+  <p>Third thread, separate from the X-ray work.</p>
+  <ul>
+    <li><strong>The problem</strong> — the GitHub Pages URL was
+        already publishing the repo. It rendered the README —
+        "download and double-click" — and never mentioned that
+        <code>game.html</code> was sitting right there, playable.
+        That is why it felt like the game was not on the web.</li>
+    <li><strong>The fix</strong> — a tiny <code>index.html</code>
+        that redirects to the game. The README's first link becomes
+        "play it here." The spec adds one sentence: Pages is extra,
+        not instead. The file on disk still opens with the network
+        off.</li>
+  </ul>
   <p class="hint">
-    Test: walked the live root after merge; it opened the game;
-    Chrome console empty. They could not set the GitHub "homepage"
-    field from that session (permission denied). Edge on a school
-    laptop is still on the to-do list.
+    <strong>Tested:</strong> walked the live root after merge; it
+    opened the game; Chrome console empty. They could not set the
+    GitHub "homepage" field from that session (permission denied).
+    Edge on a school laptop is still on the to-do list.
   </p>
   <!-- scaffold-phase-6: before/after Pages screenshots -->
 </article>
@@ -750,6 +876,10 @@ paused, then .  bank = exactly one slice; UPDATE runs once; then quiet again
   <header class="when">
     <span class="tag">Phase 7 · Sep 2, 4:30pm · PR #7</span>
     <h3>Five sentences that were lying</h3>
+    <p class="takeaway">
+      Two readers who never compared notes tripped on the same two
+      sentences. Five got fixed.
+    </p>
   </header>
   <p>
     Back in the X-ray thread. A second look — screenshots at school
@@ -777,13 +907,15 @@ paused, then .  bank = exactly one slice; UPDATE runs once; then quiet again
     in the guides had to move.
   </p>
   <p class="hint">
-    Tests: 44 playthrough checks, 29 seconds, twice, zero console
-    output. Still nobody has opened this in Edge. The new thing to
-    eyeball there: the widest diagram row is 54 characters, and a
-    fat scrollbar plus Courier New might clip it.
+    <strong>Tested:</strong> 44 playthrough checks, 29 seconds,
+    twice, zero console output. Still nobody has opened this in
+    Edge. The new thing to eyeball there: the widest diagram row is
+    54 characters, and a fat scrollbar plus Courier New might clip
+    it.
   </p>
 
-  <p class="closeup">Close-up · why two readers who do not talk</p>
+  <details class="closeup">
+  <summary>Close-up · why two readers who do not talk</summary>
   <p>
     One reader was told to be fifteen. One was told to be someone who
     reviews learning software. Neither saw the other's notes, and
@@ -793,8 +925,10 @@ paused, then .  bank = exactly one slice; UPDATE runs once; then quiet again
     "certain." The other three findings were judgement calls and are
     labelled that way in the spec.
   </p>
+  </details>
 
-  <p class="closeup">Close-up · the top finding, before and after</p>
+  <details class="closeup">
+  <summary>Close-up · the top finding, before and after</summary>
   <pre class="picture">
 after pressing P
 
@@ -810,8 +944,10 @@ after pressing P
     game's own list of keys it listens for, so the panel cannot drift
     from INPUT if that list ever changes.
   </p>
+  </details>
 
-  <p class="closeup">Close-up · three tenses for one row</p>
+  <details class="closeup">
+  <summary>Close-up · three tenses for one row</summary>
   <p>
     The state row had two states and needed three. "This frame:" when
     a real change just landed in the log. "Timers only, last …" when
@@ -821,8 +957,10 @@ after pressing P
     difference between the last two is one comparison: did snapshot A
     differ from snapshot B at all. That comparison already existed.
   </p>
+  </details>
 
-  <p class="closeup">Close-up · two things they said no to</p>
+  <details class="closeup">
+  <summary>Close-up · two things they said no to</summary>
   <ul>
     <li>Rewording the UPDATE row on the single frame a <kbd>.</kbd>
         step runs. That frame lasts sixteen milliseconds. Nobody can
@@ -833,12 +971,13 @@ after pressing P
         UPDATE let you step or not. The arrow's order won; the caption
         explains the numbers instead.</li>
   </ul>
+  </details>
   <p class="hint">
-    A smaller honesty note from the same pass: after stripping the
-    window, the leftover game is 1,242 lines now, one fewer than phase
-    5 quoted, because one trimmed comment sat outside the window. So
-    the earlier "byte-identical" claim stopped being true, and the
-    handoff says so rather than letting it stand.
+    <strong>Note:</strong> a smaller honesty note from the same pass:
+    after stripping the window, the leftover game is 1,242 lines now,
+    one fewer than phase 5 quoted, because one trimmed comment sat
+    outside the window. So the earlier "byte-identical" claim stopped
+    being true, and the handoff says so rather than letting it stand.
   </p>
   <!-- scaffold-phase-7: the five screenshot states -->
 </article>
@@ -848,26 +987,31 @@ after pressing P
   <header class="when">
     <span class="tag">Phase 8 · Sep 2, 9:30pm · PR #8, then a second pass</span>
     <h3>The time-lapse itself</h3>
+    <p class="takeaway">
+      A Cursor agent wrote this page in one evening. The X-ray thread
+      then fixed its clock: thirty hours, not three days.
+    </p>
   </header>
-  <p>
-    A Cursor agent wrote the first draft of this page in one evening
-    session: the ADEPT frame, the three threads, the phases, and a
-    note under each one saying what a later session should add. It
-    linked the page from the help line under the game canvas without
-    moving a single line number in the reading guide.
-  </p>
-  <p>
-    The same night, the X-ray thread came back and filled in phases
-    3, 4, 5 and 7, the ones it had lived through, from its own handoff
-    notes, commit messages and the code. It also fixed the clock: the
-    first draft read agent timestamps as local time and said three
-    days. It was thirty hours.
-  </p>
+  <ul>
+    <li><strong>The first draft</strong> — a Cursor agent wrote the
+        ADEPT frame, the three threads, the phases, and a note under
+        each one saying what a later session should add, all in one
+        evening session. It linked the page from the help line under
+        the game canvas without moving a single line number in the
+        reading guide.</li>
+    <li><strong>The fill-in, same night</strong> — the X-ray thread
+        came back and filled in phases 3, 4, 5 and 7, the ones it had
+        lived through, from its own handoff notes, commit messages
+        and the code. It also fixed the clock: the first draft read
+        agent timestamps as local time and said three days. It was
+        thirty hours.</li>
+  </ul>
   <p class="hint">
-    Test: this page was opened in headless Chromium at 1366×650 before
-    and after, checked for horizontal overflow and console output, and
-    the maintainer tools were re-run to show <code>game.html</code>
-    did not change. Nobody has opened any of this in Edge yet.
+    <strong>Tested:</strong> this page was opened in headless
+    Chromium at 1366×650 before and after, checked for horizontal
+    overflow and console output, and the maintainer tools were
+    re-run to show <code>game.html</code> did not change. Nobody
+    has opened any of this in Edge yet.
   </p>
   <!-- scaffold-phase-8: the Cursor session's screenshots -->
 </article>
@@ -945,7 +1089,8 @@ after pressing P
     ADEPT framing from
     <a href="https://betterexplained.com/articles/adept-method/">Kalid Azad / BetterExplained</a>.
     First draft the evening of 2 September 2026, Hawaiʻi time. X-ray
-    close-ups and corrected times added the same night.
+    close-ups and corrected times added the same night. Skim pass on
+    3 September.
   </p>
 </footer>
 

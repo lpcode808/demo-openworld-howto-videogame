@@ -227,3 +227,19 @@ elsewhere. Desktop agents read the newest entry after syncing.
 - Not done: close-ups for phases 0, 1, 2 and 6 belong to the Cursor threads that lived them.
   Edge on a school laptop is still unproven for every page in this repo.
 - Routing: → merge to main; a Cursor session fills in phases 0–2 and 6; then the Edge check.
+
+### 2026-09-03 — tab icon, help-line break, how.html skim pass — Claude Code
+- All three pages now share an inline SVG tab icon (grass, water strip, gold player) written in
+  the `<head>` as a three-line `data:` URL, so there is still no extra file to lose. In
+  `game.html` it replaced the empty icon and its comment line-for-line, and the help paragraph
+  now closes on its last text line, so the file is still exactly 1,800 lines and no reading-guide
+  citation moved. "How this was made" sits on its own line under the canvas (a `<br>`).
+- `how.html` third pass, for skimming: an "On this page" jump list under the lede, a one-line
+  takeaway under every phase title, list-shaped paragraphs turned into bullets, grey hints
+  labelled Why / Tested / Note / Staffing, and all eleven close-ups folded into `<details>`
+  (closed by default, no JS). No facts, times or numbers changed. Spine and anchors intact.
+- Checks: `check.mjs` PASS, `check-doc-lines.mjs` clean, both pages rendered in headless
+  Chromium at 1366×650 with zero console output and no horizontal overflow; icon loads.
+- Not done: Edge on a school laptop, still. Also worth an eye in Edge: `<details>` folding and
+  the two-column jump list.
+- Routing: → merge; the Edge check is still the next human test.
