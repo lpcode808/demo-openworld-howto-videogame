@@ -2,8 +2,9 @@
 
 **An open-world adventure game built to be read, not played.**
 
-Status: v1.4 · P1 built 2026-09-01 · X-RAY and pause/step added 2026-09-02 (§4a, §5a, §8)
+Status: v1.5 · P1 built 2026-09-01 · X-RAY and pause/step added 2026-09-02 (§4a, §5a, §8)
 · X-ray explanation layer added 2026-09-02 (§4b, §8) · X-ray wording pass 2026-09-03 (§4c, §8)
+· first student playtest answered 2026-09-03 (§4d, §8)
 
 ---
 
@@ -212,6 +213,56 @@ frame nobody can read; the `this frame:` row and the change log already show the
 reordering the detail boxes by section number (would split UPDATE from the COLLIDE box that
 explains its decision).
 
+### 4d. Amendment (v1.5) — the first student playtest
+
+A student played the finished game through and wrote back. §10 named that report as the thing
+to watch, so this pass answers it rather than a review. Their message asked for six things.
+Two are in the file now; four became exercises in `CHANGE-ME.md`; none of the P2 list moved.
+
+**Built.**
+
+- **Mashing left and right confused the player's direction.** Reproduced: twelve alternating
+  taps ending on Right left the player two tiles *west* and facing *west*. Two causes, both in
+  the same place. `updatePlayerMovement` read the four held-key flags in a fixed order, so
+  whenever two arrows overlapped — which happens for a few milliseconds on every mash — the
+  earlier `if` won regardless of which key was pressed second; and the function returns early
+  while `stepCooldown` is still running, so a tap shorter than one step was dropped entirely.
+  `intents` now carries `newestMoveDirection`, written by INPUT on every movement keydown and
+  cleared by `updatePlayerMovement` once it has had its turn. Releasing the key does not clear
+  it, which is what makes a fast tap survive the cooldown. The held-key order is still there,
+  as the fallback for a key that is simply down. This is the fix's payload for a reader: a list
+  of what is held cannot express *which one you pressed second*, so INPUT has to write it down.
+- **A speedrun timer.** **T** starts a clock at 0:00 in the top-right corner of the world and
+  **T** again stops and hides it. `state.runTimer` is `{ secondsElapsed, visible }`; it only
+  counts while visible, which keeps a hidden clock out of the X-ray's change log — and makes
+  pressing T a one-key demonstration of a field starting to tick. Not saved, so a reload gives
+  a fresh clock; that gap is exercise D in `CHANGE-ME.md`.
+
+**Deliberately not built.**
+
+- **The game never decides a run is over.** A finish line at all three flags is exercise 10 in
+  `CHANGE-ME.md`; implementing it here would have spent the hardest exercise in the guide. The
+  timer is written so that exercise becomes "stop the clock", and entry 10 now says so.
+- **Sound**, and **a forest area with a gathering quest**. Sound is on the P2 list and is an
+  explicit P1 non-goal in §5. The forest is a third map plus items plus a quest — the largest
+  change anyone could make to this file, and therefore the most valuable one to leave for a
+  student. Both are in `CHANGE-ME.md`'s extras, sound framed around the question it actually
+  raises: where does an *output* live when RENDER is only allowed to read and draw?
+- **"Extremely easy to speedrun."** Accurate, and not a defect — §1 says success is not a fun
+  game. The timer makes the observation measurable, which is the most this file should do
+  about it.
+- **Per-character dialogue voices**, including the leetspeak idea. Pure DATA: no code changes
+  at all, which is exactly why it is exercise A rather than a commit. Choosing the tone of
+  three characters in a school artifact is also the maintainer's call, not an agent's.
+
+**The size constraint this pass moved.** `game.html` is 1,916 lines: over §3's 1,200–1,800
+target band, under its 2,000 ceiling, with the four tools green. That is the one hard number
+in this document the change crossed, and it is the maintainer's to settle — raise the band to
+~1,950 and note that the remaining headroom is 84 lines, or trim the pass back. Nothing else
+in §3 moved: no dependency, no build step, no line over 100 characters, no function over 40
+(`drawHud` hit 41 and was split, which is what §3 says to do), and the X-ray is still
+removable.
+
 ---
 
 ## 5. Scope — what the game actually is
@@ -337,6 +388,17 @@ Mechanically checkable — run these before calling it done:
 - [ ] (v1.4) The prompt textarea is hidden until the first "ask an AI" click, then shown.
 - [ ] (v1.4) The UPDATE caption names `stepCooldown` and `notice.secondsLeft` as left out.
 - [ ] (v1.4) `game.html` is ≤ 1,800 lines and every student-facing line citation still holds.
+      *(v1.5 crossed the first half of this: the file is 1,916 lines. See §4d — the band is the
+      maintainer's call. The citation half still holds and is still checked.)*
+- [ ] (v1.5) Twelve alternating Left/Right taps ending on Right leave the player facing right,
+      not left, and a tap shorter than one step is not dropped.
+- [ ] (v1.5) T starts the clock at 0:00 and shows it; T again hides it and it stops counting.
+      With the timer off, the X-ray's `3 · state` row still reads `no change` when standing
+      still; with it on, that row reads `timers only`.
+- [ ] (v1.5) `runTimer` is absent from the save, so K → F5 → L restores progress with a fresh
+      clock. Section 11 is still removable and `xrayMemory` is still the only X-ray memory.
+- [ ] (v1.5) All four `tools/*.mjs` exit 0 after every TEARDOWN/CHANGE-ME citation was
+      re-anchored, and no line in `game.html` exceeds 100 characters.
 
 Judged by a human, not the agent:
 

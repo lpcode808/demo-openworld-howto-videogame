@@ -243,3 +243,37 @@ elsewhere. Desktop agents read the newest entry after syncing.
 - Not done: Edge on a school laptop, still. Also worth an eye in Edge: `<details>` folding and
   the two-column jump list.
 - Routing: → merge; the Edge check is still the next human test.
+
+### 2026-09-03 — first student playtest answered: input fix, speedrun timer — Claude Code
+- **The direction bug is real and is fixed.** Reproduced in headless Chromium first: twelve
+  alternating Left/Right taps ending on Right left the player two tiles *west* and facing
+  *west*. Two causes in one place — `updatePlayerMovement` read the four held-key flags in a
+  fixed order (so the earlier `if` won whenever two arrows overlapped, which is every mash),
+  and it returns early while `stepCooldown` runs (so a tap shorter than one step was dropped).
+  `intents.newestMoveDirection` now carries the last direction pressed; INPUT writes it, and
+  `updatePlayerMovement` clears it once it has had its turn. Releasing the key does not clear
+  it — that is what makes a fast tap survive. Held-key order stays as the fallback.
+- **Speedrun timer.** T starts a clock at 0:00 top-right, T again stops and hides it.
+  `state.runTimer` only counts while visible, which keeps a hidden clock out of the X-ray
+  change log and makes pressing T a one-key demo of a field starting to tick. Not saved.
+- **Not built, on purpose:** sound (P2 list, explicit P1 non-goal), the forest-gathering second
+  area, per-character dialogue voices/leetspeak, and any difficulty rebalance. All four are now
+  `CHANGE-ME.md` extras A–D — the forest and the voices are the two most valuable things in the
+  student's message to leave *for* a student, and the tone of three characters in a school
+  artifact is the maintainer's call. A finish line for the timer is deliberately left as
+  exercise 10, which now says so.
+- **The one constraint this crossed:** `game.html` is **1,916 lines** — over PRD §3's 1,200–1,800
+  target band, 84 under the 2,000 ceiling. PRD §4d records it and says plainly it is the
+  maintainer's call: raise the band to ~1,950, or trim the pass. Nothing else in §3 moved
+  (`drawHud` hit 41 lines and was split into `drawQuestList`, per §3's own instruction).
+- Checks: all four tools exit 0. `check.mjs` PASS, `check-doc-lines.mjs` clean after every
+  TEARDOWN/CHANGE-ME citation was re-anchored (mechanically, by diff, then eyeballed),
+  `check-xray-removable.mjs` PASS, `playthrough.mjs` 50 checks / 30s / zero console output.
+  Three new playthrough checks cover the mash, the short tap, and the timer, so this can't
+  silently regress. Screenshot-checked at 1366×650: clock does not collide with the "Saved!"
+  banner, no horizontal page overflow, `1:08` formats right.
+- Not done: Edge on a school laptop — still unproven, still the next human test, and now there
+  is a new key (T) and a new HUD element to check there. `how.html` was left alone; a phase for
+  this playtest pass is available to whoever wants to write it.
+- Routing: → the maintainer, for two calls — the line-count band in PRD §3, and whether to
+  accept leetspeak/voice variation as a student exercise or have it written into DATA directly.
