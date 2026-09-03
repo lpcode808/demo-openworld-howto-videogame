@@ -149,3 +149,10 @@ elsewhere. Desktop agents read the newest entry after syncing.
   root should open the game; until then `/game.html` already works.
 - Routing: → merge PR #6, then confirm the live root redirects. Edge-on-a-school-
   laptop check from the previous entry is still outstanding.
+
+### 2026-09-03-0021 — PR #6 merged; live root opens the game — Cursor cloud
+- Merged PR #6 into `origin/main` as `abb4ec6`. Pages rebuilt from that commit
+  (status `built`, ~25 s). The live root now serves `index.html` and redirects
+  to `game.html`; walked in Chrome, console empty.
+- README on `main` has [play it on GitHub Pages](https://lpcode808.github.io/demo-openworld-howto-videogame/).
+- Routing: none for Pages. Edge-on-a-school-laptop check is still outstanding.
