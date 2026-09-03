@@ -203,3 +203,27 @@ elsewhere. Desktop agents read the newest entry after syncing.
 - `game.html` itself is otherwise untouched; `check.mjs` and `check-doc-lines.mjs` still PASS.
 - Routing: → merge this first version to main, then other agents fill in close-ups under
   each phase. Edge-on-a-school-laptop check is still outstanding.
+
+### 2026-09-02-2145 — how.html second pass: X-ray close-ups, corrected clock — Claude Code
+- Read the merged `how.html` (PR #8) as the X-ray thread it asks to hear from, and filled in
+  close-ups under phases 3, 4, 5 and 7 from the handoff entries above, the PR bodies and
+  section 11 itself: the two-snapshot hook (with the Read 6 picture), the un-clevered
+  key-union loop and the section 11 banner as quotes, the pause-bank picture and why paused
+  time is discarded, the seven pipe rows mid-step, the `element.click()` test that could not
+  fail, the seven off-by-one prose citations, the two-readers method, the keyboard row
+  before/after, the three tenses of the state row, the two rejected ideas, and the
+  1,243 → 1,242 honesty note. Added a short phase 8 for the page itself. Spine, ADEPT block
+  and phases 0–2 and 6 left as written; their scaffold comments still stand.
+- **Corrected the clock across the spine.** Agent commits are stamped UTC and the maintainer's
+  merges are stamped -10:00; the first draft read them as one zone and said "three days",
+  "Sep 2 night / Sep 3" for PR #6 and "3 September" in the footer. In HST the whole build is
+  Sep 1 3:40pm → Sep 2 9:30pm, about thirty hours; PR #6 landed at 2:20pm, PR #7 at 4:30pm,
+  PR #8 at 9:30pm. Timeline, thread cards, phase tags and footer now agree, and a hint under
+  the timeline explains the ten-hour trap. Also "Hawaii" → "Hawaiʻi" throughout the page.
+  Note the two Cursor entries above stamped `2026-09-03-0005`/`-0021` are UTC, not HST.
+- `game.html` untouched: `check.mjs` PASS (1,800 lines), `check-doc-lines.mjs` clean. Page
+  checked in headless Chromium at 1366×650 before and after: no horizontal overflow, zero
+  console output, all `phase-N` anchors present (now 0–8). No line in `how.html` over 100.
+- Not done: close-ups for phases 0, 1, 2 and 6 belong to the Cursor threads that lived them.
+  Edge on a school laptop is still unproven for every page in this repo.
+- Routing: → merge to main; a Cursor session fills in phases 0–2 and 6; then the Edge check.
