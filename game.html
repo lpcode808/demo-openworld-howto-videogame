@@ -223,6 +223,11 @@ const viewportHeightInTiles = 15;
 // How fast the player walks: steps (tiles) per second while a key is held.
 const playerStepsPerSecond = 7;
 
+// How much longer a step onto "slow" ground takes. The bog in the forest is
+// the only tile marked slow, and this number is why crossing it is a choice
+// instead of a formality: 2 means every bog tile costs two ordinary steps.
+const slowTileStepMultiplier = 2;
+
 // The simulation advances in fixed slices so that a slow or fast computer
 // produces exactly the same game. 1/60 means sixty updates per second.
 const fixedStepInSeconds = 1 / 60;
@@ -234,8 +239,10 @@ const maxFrameGapInSeconds = 0.25;
 // How long the yellow notice ("Saved!", "Picked up ...") stays on screen.
 const noticeDurationInSeconds = 2;
 
-// The strip under the world where the bag and quest list are drawn.
-const hudHeightInPixels = 96;
+// The strip under the world where the bag and quest list are drawn. It is
+// 120 rather than 96 because there are four quests now and the fourth line
+// needs somewhere to go; add a fifth quest and this number grows again.
+const hudHeightInPixels = 120;
 
 // The name of the slot in the browser's localStorage that holds the save.
 const saveSlotName = 'open-world-how-to-save';
@@ -251,6 +258,9 @@ const colors = {
   treeTop: '#1f4a22',
   water: '#3a7bd5',
   bridge: '#9c6b3c',
+  forestFloor: '#3f7a38',
+  bog: '#6d6144',
+  bogTuft: '#4e4530',
   door: '#7a4a1e',
   doorInner: '#3d2410',
   wall: '#6d6d7a',
@@ -299,6 +309,11 @@ const layout = {
   dialogueMargin: 8,
   dialogueTextX: 24,
   dialogueLineHeight: 22,
+  // A shut forest gate's dark crown, smaller than a tree's, and the tufts
+  // of grass that mark the bog as slow ground.
+  gateCrownRadius: 6,
+  bogTuftInset: 6,
+  bogTuftHeight: 4,
   // The notice banner at the top.
   noticeWidth: 360,
   noticeHeight: 34,
@@ -319,21 +334,36 @@ const layout = {
 
 // Each character in a map string is one tile. This table says what each
 // character means. Add a row here and you can type the new tile into a map.
-// The bridge is listed as NOT walkable: COLLIDE makes an exception for it
-// once the carpenter has fixed it. That one rule is the whole quest system.
+//
+// Two of these tiles are listed as NOT walkable and COLLIDE lets you onto
+// them anyway once the right quests are done: the bridge, once the carpenter
+// has fixed it, and the forest gate, once all three village quests are done.
+// That one rule — a tile whose answer depends on `state` — is the whole
+// quest system, and it is worth reading twice because the file uses it twice.
+//
+// `slow` is the other thing a tile can say about itself. Only the bog says
+// yes, and UPDATE reads it to make a step across it take longer.
 const tileTypes = {
-  '.': { name: 'grass',  color: colors.grass,  walkable: true  },
-  '=': { name: 'path',   color: colors.path,   walkable: true  },
-  'T': { name: 'tree',   color: colors.tree,   walkable: false },
-  '~': { name: 'water',  color: colors.water,  walkable: false },
-  'B': { name: 'bridge', color: colors.water,  walkable: false },
-  'D': { name: 'door',   color: colors.door,   walkable: true  },
-  '#': { name: 'wall',   color: colors.wall,   walkable: false },
-  '_': { name: 'floor',  color: colors.floor,  walkable: true  },
-  'X': { name: 'exit',   color: colors.door,   walkable: true  },
+  '.': { name: 'grass',       color: colors.grass,   walkable: true,  slow: false },
+  '=': { name: 'path',        color: colors.path,    walkable: true,  slow: false },
+  'T': { name: 'tree',        color: colors.tree,    walkable: false, slow: false },
+  '~': { name: 'water',       color: colors.water,   walkable: false, slow: false },
+  'B': { name: 'bridge',      color: colors.water,   walkable: false, slow: false },
+  'D': { name: 'door',        color: colors.door,    walkable: true,  slow: false },
+  '#': { name: 'wall',        color: colors.wall,    walkable: false, slow: false },
+  '_': { name: 'floor',       color: colors.floor,   walkable: true,  slow: false },
+  'X': { name: 'exit',        color: colors.door,    walkable: true,  slow: false },
+  'G': { name: 'forest gate', color: colors.tree,    walkable: false, slow: false },
+  'm': { name: 'bog',         color: colors.bog,     walkable: true,  slow: true  },
+  ',': { name: 'forest floor', color: colors.forestFloor, walkable: true, slow: false },
 };
 
-// Two maps make a world. Each one is just a list of equal-length strings.
+// The three quests of the village, as a list, because three places need to
+// ask "are all of these done?" — the forest gate, the colour it is drawn
+// in, and the notice that tells you it opened.
+const villageQuestFlags = ['healerHelped', 'bridgeBuilt', 'elderLit'];
+
+// Three maps make a world. Each one is just a list of equal-length strings.
 // Row 0 is the top of the map; character 0 of a row is its left edge.
 //
 // To edit the world, edit the text. Swap a '.' for a 'T' and a tree
@@ -343,7 +373,7 @@ const maps = {
   overworld: {
     title: 'Riverside',
     rows: [
-      'TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT',  // 0
+      'TTTTTTTTTTTTTTTTTTGTTTTTTTTTTTTTTTTTTTTT',  // 0  <- G is the forest gate
       'T.........................~~...........T',  // 1
       'T.........................~~........T..T',  // 2
       'T....T..~~~~~..TT.........~~..TT.......T',  // 3
@@ -373,6 +403,37 @@ const maps = {
       'T......T......T...........~~...T.......T',  // 27
       'T.........................~~...........T',  // 28
       'TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT',  // 29
+    ],
+  },
+  // Level two. Behind the gate in the north treeline, shut until all three
+  // village quests are done. Read the shape of it: the stream across the
+  // middle cuts the forest in half, and there are exactly two ways north —
+  // straight through the bog ('m'), or the long way round the east end.
+  // The bog is walkable but slow, so which way is faster is a real question
+  // and not the same answer for every item. Press T and time yourself.
+  forest: {
+    title: 'The Old Forest',
+    rows: [
+      'TTTTTTTTTTTTTTTTTTTTTTTTTTTTTT',  // 0
+      'TT,,,,,,,,,TTTT,,,,,,,,,,,,,TT',  // 1
+      'T,,,,TT,,,,,,TT,,,,,,TT,,,,,,T',  // 2
+      'T,,,TTTT,,,,,,,,,,,,TT,,,,,,,T',  // 3
+      'T,,,,TT,,,,,,,,,,,,,,,,,,,,,TT',  // 4
+      'T,,,,,,,,,,,,,,,,,,,,,,,,,,,TT',  // 5
+      'TT,,,,,,,TT,,,,,,,,,TT,,,,,,,T',  // 6
+      'T~~~~~~~~~~~mmmm~~~~~~~~~~~,,T',  // 7   the stream, with the bog ford
+      'T~~~~~~~~~~~mmmm~~~~~~~~~~~,,T',  // 8   and the gap round the east end
+      'T~~~~~~~~~~~mmmm~~~~~~~~~~~,,T',  // 9
+      'T,,,,,,,,,,,,,,,,,,,,,,,,,,,TT',  // 10
+      'T,,,,TT,,,,,,,,TT,,,,,,,,,,,TT',  // 11
+      'T,,,,TT,,,,,,,,TT,,,,,,,,,,,,T',  // 12
+      'TT,,,,TT,,,,,,,,,,TT,,,,TT,,TT',  // 13
+      'T,,,,,TT,,,,,,,,,,TT,,,,,,,,,T',  // 14
+      'T,,,,,,,,,,,,,,,,TT,,,,,,,,,,T',  // 15
+      'TT,,,,,,TT,,,,,,,,,,,,,,,,,,,T',  // 16
+      'T,,,,,,,TT,,,,,,,,,TT,,,,,,,TT',  // 17
+      'TT,,,,,,,,,,,,,,,,,TT,,,,,,,TT',  // 18
+      'TTTTTTTTTTTTTTXTTTTTTTTTTTTTTT',  // 19  X leads back to the village
     ],
   },
   house: {
@@ -408,6 +469,17 @@ const doors = [
     fromMap: 'house', fromX: 10, fromY: 13,
     toMap: 'overworld', toX: 33, toY: 11, facing: 'down',
   },
+  // The forest gate. Nothing here says it is locked — a door only says
+  // where it leads. COLLIDE decides whether you may step on the tile at
+  // all, so the gate needs no special case in this table.
+  {
+    fromMap: 'overworld', fromX: 18, fromY: 0,
+    toMap: 'forest', toX: 14, toY: 18, facing: 'up',
+  },
+  {
+    fromMap: 'forest', fromX: 14, fromY: 19,
+    toMap: 'overworld', toX: 18, toY: 1, facing: 'down',
+  },
 ];
 
 // Which way each facing direction moves you, in tiles.
@@ -424,22 +496,36 @@ const items = [
   { id: 'plank',   name: 'Wooden Plank', map: 'overworld', tileX: 20, tileY: 25, color: '#c98a4b' },
   { id: 'lantern', name: 'Lantern',      map: 'overworld', tileX: 32, tileY: 22, color: '#ffb347' },
   { id: 'crown',   name: 'Gold Crown',   map: 'house',     tileX: 3,  tileY: 2,  color: '#ffe14d' },
+  // The three forest gatherables. One is south of the stream and needs no
+  // crossing; the other two are north of it, which is what the bog is for.
+  { id: 'mushroom',  name: 'Wild Mushroom', map: 'forest', tileX: 9,  tileY: 2,  color: '#d98a8a' },
+  { id: 'honeycomb', name: 'Honeycomb',     map: 'forest', tileX: 25, tileY: 2,  color: '#e8c15a' },
+  { id: 'berries',   name: 'Sweet Berries', map: 'forest', tileX: 3,  tileY: 16, color: '#8f5ad9' },
 ];
 
-// The three quests. Each is a flag in state.flags that starts false.
+// The quests. Each is a flag in state.flags that starts false.
 // The HUD lists these; the NPCs below are what flip them.
+// The first three are the village — finish all three and the forest gate
+// opens. The fourth is the forest itself, and it is the only one that wants
+// more than one thing.
 const quests = [
   { flag: 'healerHelped', title: 'Bring Mira a healing herb' },
   { flag: 'bridgeBuilt',  title: 'Bring Bram a wooden plank' },
   { flag: 'elderLit',     title: 'Bring Oswin his lantern' },
+  { flag: 'feastHeld',    title: "Fill Nessa's feast basket" },
 ];
 
-// People to talk to. Each one wants an item; giving it sets a flag.
+// People to talk to. Each one wants some items; handing them over sets a flag.
+//
+// `wantsItems` is a list even when it holds one thing. Three of these people
+// want one item and Nessa wants three, and one shape for both reads better
+// than two shapes — so Mira's list is just a list of length one.
+//
 // Dialogue is a set of named nodes. A node shows lines of text and offers
 // choices; each choice names the next node, or null to stop talking.
 // Trees are at most two nodes deep on purpose: easy to read, easy to extend.
 // UPDATE picks the starting node: 'afterQuest' if the flag is already set,
-// 'offer' if you are carrying what they want, otherwise 'hello'.
+// 'offer' if you are carrying everything they want, otherwise 'hello'.
 const npcs = [
   {
     id: 'mira',
@@ -448,7 +534,7 @@ const npcs = [
     tileX: 6,
     tileY: 13,
     color: '#e56b9f',
-    wantsItem: 'herb',
+    wantsItems: ['herb'],
     setsFlag: 'healerHelped',
     dialogue: {
       hello: {
@@ -464,7 +550,7 @@ const npcs = [
       },
       offer: {
         lines: ['Is that a healing herb in your bag?', 'Please, may I have it?'],
-        choices: [{ label: 'Give her the herb', next: 'thanks', givesItem: 'herb' },
+        choices: [{ label: 'Give her the herb', next: 'thanks', givesItems: true },
                   { label: 'Not right now', next: null }],
       },
       thanks: {
@@ -484,7 +570,7 @@ const npcs = [
     tileX: 24,
     tileY: 13,
     color: '#5b8dd6',
-    wantsItem: 'plank',
+    wantsItems: ['plank'],
     setsFlag: 'bridgeBuilt',
     dialogue: {
       hello: {
@@ -500,7 +586,7 @@ const npcs = [
       },
       offer: {
         lines: ['That plank is exactly what I need!'],
-        choices: [{ label: 'Hand over the plank', next: 'thanks', givesItem: 'plank' },
+        choices: [{ label: 'Hand over the plank', next: 'thanks', givesItems: true },
                   { label: 'Keep it', next: null }],
       },
       thanks: {
@@ -520,7 +606,7 @@ const npcs = [
     tileX: 10,
     tileY: 4,
     color: '#b9a7e0',
-    wantsItem: 'lantern',
+    wantsItems: ['lantern'],
     setsFlag: 'elderLit',
     dialogue: {
       hello: {
@@ -536,7 +622,7 @@ const npcs = [
       },
       offer: {
         lines: ['Is that my lantern? Light it, please!'],
-        choices: [{ label: 'Give him the lantern', next: 'thanks', givesItem: 'lantern' },
+        choices: [{ label: 'Give him the lantern', next: 'thanks', givesItems: true },
                   { label: 'Not yet', next: null }],
       },
       thanks: {
@@ -546,6 +632,46 @@ const npcs = [
       },
       afterQuest: {
         lines: ['Thanks to you I can read again. Come visit anytime.'],
+        choices: [],
+      },
+    },
+  },
+  // Level two's quest-giver. Talk to her first and she tells you what the
+  // forest is for and why you cannot get in yet, which is the whole of
+  // level two explained by a villager instead of by a tutorial.
+  {
+    id: 'nessa',
+    name: 'Nessa the Cook',
+    map: 'overworld',
+    tileX: 19,
+    tileY: 13,
+    color: '#e8a15a',
+    wantsItems: ['mushroom', 'honeycomb', 'berries'],
+    setsFlag: 'feastHeld',
+    dialogue: {
+      hello: {
+        lines: ['I want to cook this village a proper harvest feast.',
+                'Everything I need grows in the Old Forest, north of here.'],
+        choices: [{ label: 'What do you need?', next: 'more' },
+                  { label: 'Another time.', next: null }],
+      },
+      more: {
+        lines: ['A wild mushroom, a honeycomb and a handful of sweet berries.',
+                'The forest gate has been grown shut for years, mind.',
+                'It opens when the village is whole again — so go help the others.'],
+        choices: [],
+      },
+      offer: {
+        lines: ["Mushroom, honeycomb, berries — that's the whole basket!"],
+        choices: [{ label: 'Hand over all three', next: 'thanks', givesItems: true },
+                  { label: 'Not yet', next: null }],
+      },
+      thanks: {
+        lines: ['The whole village eats tonight. Sit down, you first.'],
+        choices: [],
+      },
+      afterQuest: {
+        lines: ['They still talk about that feast. Mostly the honey.'],
         choices: [],
       },
     },
@@ -602,11 +728,14 @@ const state = {
   // ground after being given away. e.g. { herb: true }.
   pickedUpItems: {},
 
-  // The quest flags. false until the matching NPC receives their item.
+  // The quest flags. false until the matching NPC receives what they asked
+  // for. The first three gate the forest between them; the fourth is the
+  // forest quest itself, and nothing in the world reads it yet.
   flags: {
     healerHelped: false,
     bridgeBuilt: false,
     elderLit: false,
+    feastHeld: false,
   },
 
   // null when nobody is talking. Otherwise which NPC, which dialogue node,
@@ -848,7 +977,7 @@ function updatePlayerMovement(stepSeconds) {
 
   player.tileX = targetX;
   player.tileY = targetY;
-  player.stepCooldown = 1 / playerStepsPerSecond;
+  player.stepCooldown = stepCooldownFor(state.currentMap, targetX, targetY);
   pickUpItemUnderPlayer();
   goThroughDoorUnderPlayer();
 }
@@ -881,6 +1010,34 @@ function hasItem(itemId) {
   return state.inventory.includes(itemId);
 }
 
+// Is every item on this list in the bag? Mira's list is one long and
+// Nessa's is three, and this one function answers for both.
+function hasAllItems(itemIds) {
+  for (const itemId of itemIds) {
+    if (!hasItem(itemId)) return false;
+  }
+  return true;
+}
+
+// Are all three village quests done? The forest gate, the colour it is
+// drawn in, and the notice that announces it all ask this same question.
+function villageQuestsAllDone() {
+  for (const flag of villageQuestFlags) {
+    if (!state.flags[flag]) return false;
+  }
+  return true;
+}
+
+// How long the step onto this tile should take. Every tile is one ordinary
+// step except the bog, which is the only ground in the game that slows you
+// down — and the reason the forest's short way across is a real choice.
+function stepCooldownFor(mapName, tileX, tileY) {
+  if (tileTypes[tileAt(mapName, tileX, tileY)].slow) {
+    return slowTileStepMultiplier / playerStepsPerSecond;
+  }
+  return 1 / playerStepsPerSecond;
+}
+
 // Take one item out of the bag. Loops instead of a one-liner so the
 // "find it, then remove it" idea is visible.
 function removeItemFromInventory(itemId) {
@@ -905,7 +1062,7 @@ function updateTalking() {
   let startingNode = 'hello';
   if (state.flags[npc.setsFlag]) {
     startingNode = 'afterQuest';
-  } else if (hasItem(npc.wantsItem)) {
+  } else if (hasAllItems(npc.wantsItems)) {
     startingNode = 'offer';
   }
   state.dialogue = { npcId: npc.id, nodeKey: startingNode, choiceIndex: 0 };
@@ -931,8 +1088,8 @@ function updateDialogue() {
     return;
   }
   const choice = node.choices[dialogue.choiceIndex];
-  if (choice.givesItem) {
-    giveItemToNpc(choice.givesItem, npc);
+  if (choice.givesItems) {
+    giveItemsToNpc(npc);
   }
   if (choice.next === null) {
     state.dialogue = null;
@@ -942,12 +1099,23 @@ function updateDialogue() {
   }
 }
 
-// The moment a quest completes: the item leaves the bag and a flag flips.
-// COLLIDE and RENDER read the flags, so the world changes on its own.
-function giveItemToNpc(itemId, npc) {
-  removeItemFromInventory(itemId);
+// The moment a quest completes: everything they asked for leaves the bag and
+// a flag flips. COLLIDE and RENDER read the flags, so the world changes on
+// its own — the bridge appears, and once all three village flags are set the
+// forest gate opens.
+function giveItemsToNpc(npc) {
+  for (const itemId of npc.wantsItems) {
+    removeItemFromInventory(itemId);
+  }
   state.flags[npc.setsFlag] = true;
-  showNotice('Quest complete: ' + findItemById(itemId).name + ' delivered');
+  showNotice('Quest complete: ' + npc.name);
+
+  // Finishing the third village quest opens the forest gate, which is at
+  // the top of the map where you cannot possibly see it happen. So say so.
+  const wasVillageQuest = villageQuestFlags.includes(npc.setsFlag);
+  if (wasVillageQuest && villageQuestsAllDone()) {
+    showNotice('The Old Forest is open!');
+  }
 }
 
 
@@ -996,9 +1164,15 @@ function canWalkTo(mapName, tileX, tileY) {
 
   const tileCharacter = tileAt(mapName, tileX, tileY);
 
-  // The bridge is the one tile whose walkability depends on state.
+  // Two tiles have an answer that depends on `state` rather than on the
+  // legend. Both are quests made physical: the bridge until Bram fixes it,
+  // and the forest gate until the whole village has been helped. Everything
+  // else just reads its walkable flag from the table in DATA.
   if (tileCharacter === 'B') {
     return state.flags.bridgeBuilt;
+  }
+  if (tileCharacter === 'G') {
+    return villageQuestsAllDone();
   }
   return tileTypes[tileCharacter].walkable;
 }
@@ -1060,11 +1234,17 @@ function render() {
   drawRunTimer();
 }
 
-// The bridge is the one tile whose look depends on state: water until the
-// carpenter fixes it, planks afterwards.
+// Two tiles look different once a quest is done: the bridge is water until
+// the carpenter fixes it and planks afterwards, and the forest gate is trees
+// until the village is whole and a path through afterwards. Both read the
+// same flags COLLIDE reads, which is why the picture can never disagree with
+// what you are allowed to walk on.
 function tileColorFor(tileCharacter) {
   if (tileCharacter === 'B' && state.flags.bridgeBuilt) {
     return colors.bridge;
+  }
+  if (tileCharacter === 'G' && villageQuestsAllDone()) {
+    return colors.path;
   }
   return tileTypes[tileCharacter].color;
 }
@@ -1105,6 +1285,20 @@ function drawTileDetail(tileCharacter, pixelX, pixelY) {
     context.beginPath();
     context.arc(pixelX + half, pixelY + half, layout.treeTopRadius, 0, Math.PI * 2);
     context.fill();
+  }
+  // A shut gate gets a smaller, darker crown than a real tree, so a player
+  // looking along the treeline can spot the one tile that is not a tree.
+  if (tileCharacter === 'G' && !villageQuestsAllDone()) {
+    context.fillStyle = colors.doorInner;
+    context.beginPath();
+    context.arc(pixelX + half, pixelY + half, layout.gateCrownRadius, 0, Math.PI * 2);
+    context.fill();
+  }
+  // Tufts of grass in the bog, so slow ground looks different from a path.
+  if (tileCharacter === 'm') {
+    context.fillStyle = colors.bogTuft;
+    context.fillRect(pixelX + layout.bogTuftInset, pixelY + half,
+      tileSizeInPixels - layout.bogTuftInset * 2, layout.bogTuftHeight);
   }
   if (tileCharacter === 'D' || tileCharacter === 'X') {
     const side = layout.doorInsetSide;
@@ -1711,6 +1905,17 @@ function showCollide() {
   if (tileCharacter === 'B') {
     text += '\nbridge: walkable only when flags.bridgeBuilt (now ' +
       state.flags.bridgeBuilt + ')';
+  }
+  // The gate is the same rule over three flags instead of one, so the panel
+  // shows all three: a player standing at it can see which one is missing.
+  if (tileCharacter === 'G') {
+    text += '\ngate: walkable only when all three village flags are set';
+    for (const flag of villageQuestFlags) {
+      text += '\n  ' + flag.padEnd(14, ' ') + state.flags[flag];
+    }
+  }
+  if (tileTypes[tileCharacter].slow) {
+    text += '\nslow: a step onto this tile takes ' + slowTileStepMultiplier + 'x as long';
   }
   xrayCollideText.textContent = text;
 }

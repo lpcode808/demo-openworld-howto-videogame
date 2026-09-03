@@ -309,3 +309,52 @@ elsewhere. Desktop agents read the newest entry after syncing.
   but both are deliberately left as student exercises, so do not build them without being asked.
   If sound is ever wanted in the file, §0a and §3a say where it goes: after BOOT, opt-in,
   removable.
+
+### 2026-09-03 — level two: the Old Forest — Claude Code
+- **There is a level two now.** Asked for by the maintainer; it was the student's own idea from
+  the §4d playtest, which v1.5 had left as a `CHANGE-ME.md` exercise. That call is reversed.
+  A third map (`forest`, 30×20) sits behind a `G` tile typed into row 0 of the overworld's north
+  treeline, shut until all three village flags are set. Nessa the Cook, one tile off the main
+  path, wants three things gathered there — a fourth quest. Talking to her *before* the gate
+  opens is how a player learns what level two is: level two explained by a villager, not a
+  tutorial.
+- **Three new ideas, each deliberately a second instance of something the file already teaches.**
+  That is what kept the required read inside its band. (1) `canWalkTo`'s bridge exception now has
+  a sibling: the gate asks `villageQuestsAllDone()` — three flags instead of one, so the pair
+  says a tile can depend on as much of `state` as you like. (2) `wantsItem` became `wantsItems`
+  for every NPC, so Mira's list is one long and Nessa's is three; `hasAllItems` answers for both.
+  (3) `tileTypes` gained a `slow` column — only the bog says yes, and `stepCooldownFor` acts on
+  it. The x-ray's COLLIDE probe explains both new tiles: facing a shut gate it lists all three
+  flags so you can see which one is missing.
+- **The bog is the answer to "extremely easy to speedrun".** The stream cuts the forest in half
+  with exactly two ways through. Measured in step-equivalents (a bog tile costs two): the ford
+  beats the detour by 23 for the mushroom, by **1** for the honeycomb, and is no use at all for
+  the berries. So with **T** running there is now something to actually optimise, and CHANGE-ME
+  extra B asks the student to build a map with a real decision of its own.
+- **The five-minute rule (PRD §5) is untouched, and that is why this was buildable.** Level one
+  is still three quests and two maps, and the gate does not open until those three flags are set,
+  so the path that rule measures is the same path it always was. Full game ≈ ten minutes.
+- **What it cost the reading guide, which is half the product.** Level two spends three of the ten
+  exercises by doing them — 7 (terrain with new walkability), 9 (a two-item quest), 10 (something
+  happens when all three flags are set). All three were **rewritten, not stubbed**: each now
+  points at the forest as its worked example and asks for the next step up (a third tile property;
+  a quest that hands an item *back*; a payoff for the fourth flag). Extra B went from "build the
+  forest" to "build a level three, and this time nobody has done it for you."
+- **Budgets (PRD §3a).** Required read 1,676 of 1,800 — about 120 lines of floor left, and that
+  is the number to watch, not the 2,600. Whole file 2,121 of 2,600. The x-ray additions this pass
+  landed after BOOT and so cost the floor nothing, which is the §0a rule working as intended.
+- **Perf re-measured, since raising the limit was conditional on it.** Heaviest frame — walking,
+  timer on, x-ray open — is 0.43 ms of 16.7 ms, flat 60 fps; the 1,800-line version was 0.46 ms,
+  so every difference is noise and none tracks line count. Parse is a one-time 13.5 ms median
+  over six loads of the 83 KB file. PRD §3a's old "110 ms parse" figure was a cold-start
+  artifact and has been corrected.
+- Checks: all four tools exit 0. `playthrough.mjs` is 62 checks / ~60 s / zero console output and
+  now actually plays level two — gate shut (including holding a key into it), gate open, the third
+  map, all three gatherables, the bog's cost, the three-item hand-over, and that four quest lines
+  fit the HUD. Its pathfinder learned the gate, so it mirrors COLLIDE honestly again.
+  `check.mjs` reports the two budgets; citations re-anchored and eyeballed one by one.
+- Not done: **Edge on a school laptop**, still. The list of things unproven there keeps growing —
+  T, the four-line HUD (the canvas is 640×600 now, up from 640×576), the forest's colours.
+- Routing: → the Edge check is now the most overdue thing in this repo. After that, the two open
+  student ideas are `CHANGE-ME.md` extras A (per-character voices, incl. leetspeak — still the
+  maintainer's tone call) and C (sound, still on the P2 list). Neither should be built unasked.

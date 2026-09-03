@@ -1,10 +1,11 @@
 # How to Read an Open-World Video Game
-An open-world adventure game **built to be read, not played.** One HTML file, ~1,900 lines,
+An open-world adventure game **built to be read, not played.** One HTML file, ~2,100 lines,
 no build, no dependencies, no internet. It runs in Microsoft Edge and Chrome.
 
 **Open it:** [play it on GitHub Pages](https://lpcode808.github.io/demo-openworld-howto-videogame/)
 or download `game.html` and double-click. Arrows/WASD walk, Space talks, K saves,
-L loads, N starts over, T times a run. Three quests, two maps, five minutes.
+L loads, N starts over, T times a run. Four quests, three maps, ten minutes.
+Finish the three village quests and the forest gate in the north treeline opens.
 
 **Watch it run:** press X for the x-ray, a side panel that shows keys becoming intents becoming
 state becoming pixels while you play. Inside it, P freezes the world, `.` runs one tick, and two

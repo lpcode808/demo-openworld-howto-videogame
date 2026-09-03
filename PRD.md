@@ -2,9 +2,10 @@
 
 **An open-world adventure game built to be read, not played.**
 
-Status: v1.5 · P1 built 2026-09-01 · X-RAY and pause/step added 2026-09-02 (§4a, §5a, §8)
+Status: v1.6 · P1 built 2026-09-01 · X-RAY and pause/step added 2026-09-02 (§4a, §5a, §8)
 · X-ray explanation layer added 2026-09-02 (§4b, §8) · X-ray wording pass 2026-09-03 (§4c, §8)
 · first student playtest answered 2026-09-03 (§4d, §8)
+· level two — the Old Forest — added 2026-09-03 (§5b, §8)
 
 ---
 
@@ -97,15 +98,17 @@ The v1.5 pass took the file to 1,916 lines and asked whether the 1,800 target sh
 findings settled it.
 
 **Performance is not the constraint, and now there is a number.** Measured in headless Chromium
-at 1366×650, calling the file's own functions two thousand times each: `update` 0.0004 ms,
-`render` 0.43 ms, `JSON.stringify(state)` 0.003 ms (twice a frame), `showXray` 0.04 ms with the
+at 1366×650, calling the file's own functions two thousand times each: `update` 0.0005 ms,
+`render` 0.41 ms, `JSON.stringify(state)` 0.001 ms (twice a frame), `showXray` 0.015 ms with the
 panel open. The heaviest frame this file can produce — walking, timer running, X-ray open — is
-**0.48 ms of a 16.7 ms budget, under 3%**, and it holds a flat 60 fps in every combination. The
-same measurement on the 1,800-line version before the pass came out at 0.46 ms, a difference
-inside the noise. Parsing is a one-time 110 ms at load, on 72 KB. There is roughly 35× headroom.
-Line count is not a performance axis for a file this size and will not become one at 2,600.
-(§5 still lists performance work as a non-goal. This was a measurement to answer a question,
-not an optimisation.)
+**0.43 ms of a 16.7 ms budget, under 3%**, and it holds a flat 60 fps in every combination. The
+same measurement on the 1,800-line version before the pass came out at 0.46 ms, and re-running it
+after level two went in (2,121 lines) gave 0.43 ms — every difference is inside the noise, and
+none of them tracks line count. Parsing is a one-time cost at load: median 13.5 ms over six
+loads of the 83 KB file. There is roughly 35× per-frame headroom. Line count is not a
+performance axis for a file this size and will not become one at 2,600. (§5 still lists
+performance work as a non-goal. This was a measurement to answer a question, not an
+optimisation.)
 
 **What the ceiling protects is reading time, and reading happens one section at a time.** The
 old single number treated the file as one sitting. It never was: `TEARDOWN.md` is six 10–15
@@ -116,13 +119,14 @@ ceiling.**
 - **The floor is sections 1–10**, and it stays where it was. A student who has never played a
   video game, let alone read one, meets exactly the ten sections and nothing else; the file
   says so at the top of section 11 and `README.md` says so too. Two ways to measure it, both
-  comfortably inside the original band: **1,482 lines** from the top of the file to the
+  comfortably inside the original band: **1,676 lines** from the top of the file to the
   section-11 banner, which is what `tools/check.mjs` now reports as a separate PASS/FAIL, and
-  **1,350 lines** once the X-ray's `<aside>` and stylesheet are stripped as well, which is
-  what `tools/check-xray-removable.mjs` prints. The floor is the number to defend: the pass
-  that took the whole file to 1,916 moved it from 1,370 to 1,482 — about 110 lines, from the
-  middle of the band to the middle of the band.
-- **The ceiling is everything after `10 · BOOT`**, and it can grow. The X-ray earned its ~570
+  **1,544 lines** once the X-ray's `<aside>` and stylesheet are stripped as well, which is
+  what `tools/check-xray-removable.mjs` prints. The floor is the number to defend, and it has
+  moved twice: 1,370 before the playtest pass, 1,482 after it, 1,676 once level two went in.
+  Still mid-band, with about 120 lines of floor left — which is the number to watch, not the
+  2,600.
+- **The ceiling is everything after `10 · BOOT`**, and it can grow. The X-ray earned its ~445
   lines by being invisible until a student presses X and provably deletable without touching
   the game. Anything else that wants room has to clear the same bar: optional, opt-in,
   removable, and checked. That is what keeps a bigger file from raising the floor.
@@ -324,10 +328,11 @@ Two are in the file now; four became exercises in `CHANGE-ME.md`; none of the P2
   three characters in a school artifact is also the maintainer's call, not an agent's.
 
 **The size constraint this pass moved — and how it was settled.** `game.html` came out of
-this pass at 1,916 lines, past §3's old 1,200–1,800 band. Raised, on the maintainer's call,
+this pass at 1,916 lines (2,121 once level two followed in v1.6), past §3's old 1,200–1,800
+band. Raised, on the maintainer's call,
 after the frame budget was measured rather than assumed: **§3 now budgets the required read
 and the whole file separately, and §3a records the measurement and the reasoning.** The
-required read is 1,482 lines, still mid-band. Nothing else in §3 moved: no dependency, no
+required read is 1,676 lines, still mid-band. Nothing else in §3 moved: no dependency, no
 build step, no line over 100 characters, no function over 40 (`drawHud` hit 41 and was split,
 which is what §3 says to do), and the X-ray is still removable.
 
@@ -353,7 +358,9 @@ the arrow: every field of `intents` with the held ones lit; a log of the last fo
 `state` (field, old value, new value, tagged with the update number; the two per-step clocks
 `stepCooldown` and `notice.secondsLeft` are skipped so they don't flood it); a COLLIDE probe of
 the tile the player faces (character, legend name, walkable?, who is standing there, where a door
-leads, and the bridge's flag-dependent rule when facing it); the whole `state` object pretty-
+leads, the bridge's flag-dependent rule when facing it, and — from v1.6 — the forest gate's
+three flags listed one per line, plus a note when the tile is slow to cross); the whole `state`
+object pretty-
 printed; and a LOOP line with frames drawn, updates run, the camera tile, and the purity check.
 Whether the panel was open survives a reload so the edit → save → F5 loop keeps it open. Nothing
 else: no pause, no step, no time travel — those are P2 candidates, listed below, not P1.5.
@@ -368,6 +375,51 @@ data on purpose, because a student can edit it.
 
 **A five-minute full playthrough must be possible**: three quests, both maps, save, reload, still
 saved. If it takes longer than five minutes, the scope grew and something comes out.
+
+### 5b. Amendment (v1.6) — level two, the Old Forest
+
+Asked for by the maintainer after playing the timer, and originally the student's own idea from
+the §4d playtest ("go out into the forest and gather things for the villagers"). It was left as
+an exercise in `CHANGE-ME.md` in v1.5; this reverses that call, on request.
+
+**The five-minute rule above is untouched, and that is why this was buildable.** Level one is
+still three quests and two maps, and the forest gate does not open until all three of those
+flags are set — so the path the five-minute criterion measures is the same path it always was.
+Level two is strictly after it. The full game including the forest is about ten minutes.
+
+**What was added.**
+
+- **A third map**, `forest` (30×20), behind a `G` tile typed into row 0 of the overworld's north
+  treeline. A stream cuts it in half with exactly two ways through: four bog tiles in the middle,
+  or a gap round the east end.
+- **A fourth quest.** Nessa the Cook, in the village, wants three things gathered in the forest.
+  She is placed one tile off the main path, and talking to her *before* the gate opens is how a
+  player learns what level two is and why they cannot get in yet — level two explained by a
+  villager rather than by a tutorial.
+
+**Three new ideas, and each one is deliberately a second instance of something the file already
+teaches** — which is what kept the required read inside its band (§3a):
+
+1. **A tile that depends on three flags, not one.** `canWalkTo` already made an exception for the
+   bridge; the gate is the same exception asking `villageQuestsAllDone()` instead of one flag.
+   Read side by side, the pair says: a tile can depend on as much of `state` as you like. The
+   whole of "level one is finished, here is somewhere new" is that one `if` plus one typed letter.
+2. **A want is a list.** `wantsItem` became `wantsItems` for every NPC, so Mira's list is one
+   long and Nessa's is three. One shape for both reads better than two shapes, and `hasAllItems`
+   answers for both.
+3. **A tile can say more about itself than "walkable".** `tileTypes` gained a `slow` column; only
+   the bog says yes, and `stepCooldownFor` in UPDATE is what acts on it. This is also the file's
+   answer to the playtest's "extremely easy to speedrun": the ford is 23 step-equivalents quicker
+   for one gatherable, **one** quicker for another, and no use at all for the third, so with the
+   timer running there is now something to actually optimise.
+
+**What this cost the reading guide, which is half the product (§2).** Level two spends three of
+`CHANGE-ME.md`'s ten exercises by doing them: 7 (a terrain type with new walkability), 9 (a quest
+that needs two items) and 10 (something happens when all three flags are set). All three were
+rewritten rather than left as stubs, each now pointing at the forest as its worked example and
+asking for the next step up: a third tile property, a quest that hands an item *back*, and a
+payoff for the *fourth* flag. Extra B, which used to be "build the forest", is now "build a level
+three, and this time nobody has done it for you." The ladder still ends harder than it starts.
 
 ---
 
@@ -462,6 +514,16 @@ Mechanically checkable — run these before calling it done:
       and the whole file is ≤ 2,600. `tools/check.mjs` reports these as two separate checks.
 - [ ] (v1.5) Anything that took the whole file past 1,800 lives after `10 · BOOT` in its own
       optional section and `tools/check-xray-removable.mjs` still passes.
+- [ ] (v1.6) On a fresh load the forest gate is shut: `canWalkTo` says no, it is drawn in the
+      tree colour, and holding a direction key into it moves nobody and changes no map.
+- [ ] (v1.6) With all three village flags set the same tile is walkable, is drawn in the path
+      colour, and leads to `forest`; a notice says so at the moment the third flag flips.
+- [ ] (v1.6) All three forest gatherables are reachable, and handing them to Nessa in one choice
+      empties all three from the bag and sets `feastHeld`.
+- [ ] (v1.6) A bog step costs exactly `slowTileStepMultiplier` ordinary steps, read from
+      `stepCooldownFor`.
+- [ ] (v1.6) Four quest lines fit in the HUD above the help line, and the level-one path the
+      five-minute rule measures is unchanged (the gate opens only after it).
 - [ ] (v1.5) Twelve alternating Left/Right taps ending on Right leave the player facing right,
       not left, and a tap shorter than one step is not dropped.
 - [ ] (v1.5) T starts the clock at 0:00 and shows it; T again hides it and it stops counting.
