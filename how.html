@@ -1,0 +1,674 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>How this was made — Open World How-To</title>
+<!-- Same empty icon as game.html: no missing-favicon error on a school machine. -->
+<link rel="icon" href="data:,">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  /* Same house as game.html: dark room, gold for "this is lit", grey for rest.
+     Extra space on purpose. ADEPT wants one idea on screen at a time. */
+  body {
+    margin: 0;
+    background: #101018;
+    color: #ddd;
+    font-family: monospace;
+    line-height: 1.55;
+  }
+  a {
+    color: #ffd75e;
+  }
+  a:hover {
+    color: #fff3b0;
+  }
+  header {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px 24px;
+    align-items: baseline;
+    justify-content: space-between;
+    padding: 12px 24px;
+    background: #101018;
+    border-bottom: 1px solid #2a2a3a;
+  }
+  header strong {
+    color: #ffd75e;
+    font-weight: normal;
+  }
+  header nav {
+    color: #7a7a88;
+    font-size: 13px;
+  }
+  main {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 48px 24px 96px;
+  }
+  h1 {
+    margin: 0 0 12px;
+    font-size: 28px;
+    font-weight: normal;
+    color: #ffd75e;
+  }
+  h2 {
+    margin: 72px 0 16px;
+    font-size: 18px;
+    font-weight: normal;
+    color: #ffd75e;
+  }
+  h3 {
+    margin: 0 0 8px;
+    font-size: 16px;
+    font-weight: normal;
+    color: #eee;
+  }
+  p, li {
+    color: #c8c8d0;
+    font-size: 14px;
+  }
+  strong {
+    color: #eee;
+    font-weight: normal;
+  }
+  kbd {
+    padding: 0 4px;
+    border: 1px solid #44445c;
+    background: #26263a;
+    color: #ffd75e;
+    font-family: monospace;
+    font-size: 12px;
+  }
+  .lede {
+    font-size: 16px;
+    color: #ddd;
+    max-width: 40em;
+  }
+  .hint {
+    color: #7a7a88;
+    font-size: 13px;
+  }
+  .adept, .phase, .thread, pre.picture {
+    background: #15151f;
+    border: 1px solid #2a2a3a;
+    padding: 16px 18px;
+  }
+  .adept {
+    margin: 36px 0;
+  }
+  .adept dt {
+    margin-top: 16px;
+    color: #ffd75e;
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .adept dt:first-child {
+    margin-top: 0;
+  }
+  .adept dd {
+    margin: 6px 0 0;
+    color: #c8c8d0;
+    font-size: 14px;
+  }
+  pre.picture {
+    margin: 28px 0;
+    overflow-x: auto;
+    color: #c8c8d0;
+    font-size: 12px;
+    line-height: 1.45;
+  }
+  .threads {
+    display: grid;
+    gap: 16px;
+    margin: 28px 0 8px;
+  }
+  @media (min-width: 720px) {
+    .threads {
+      grid-template-columns: 1fr 1fr 1fr;
+    }
+  }
+  .thread h3 {
+    color: #ffd75e;
+    font-size: 13px;
+  }
+  .thread p {
+    margin: 8px 0 0;
+    font-size: 13px;
+    color: #8a8a99;
+  }
+  .phase {
+    margin: 40px 0;
+    padding: 28px 24px 24px;
+  }
+  .phase header.when {
+    position: static;
+    display: block;
+    padding: 0;
+    border: 0;
+    margin: 0 0 18px;
+  }
+  .phase .tag {
+    display: inline-block;
+    margin-bottom: 8px;
+    color: #ffd75e;
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .phase ul {
+    padding-left: 18px;
+  }
+  .phase li {
+    margin: 6px 0;
+  }
+  footer {
+    margin-top: 80px;
+    padding-top: 24px;
+    border-top: 1px solid #2a2a3a;
+    color: #7a7a88;
+    font-size: 13px;
+  }
+</style>
+</head>
+<body>
+<header>
+  <strong>How this was made</strong>
+  <nav>
+    <a href="game.html">Play the game</a>
+    ·
+    <a href="TEARDOWN.md">Read it</a>
+    ·
+    <a href="PRD.md">The spec</a>
+  </nav>
+</header>
+<main>
+
+<!--
+  Scaffolding note for later agents
+  ---------------------------------
+  This page is a first pass. Broad strokes, student voice, ADEPT framing.
+  Please extend a phase rather than rewrite the spine, unless the spine
+  is wrong. Each phase is <article id="phase-N">. Good additions: a
+  short quote from a session, a screenshot, a corrected time, one
+  back-and-forth that taught something. Skip high-fidelity transcripts.
+-->
+
+<h1>A game, built out loud.</h1>
+
+<p class="lede">
+  A student asked <em>how are video games made?</em> The answer is one
+  HTML file you can open from disk. This page is the time-lapse of how
+  that file got written — by a teacher and a few long-running AI agents,
+  over three days in September 2026.
+</p>
+
+<p class="hint">
+  First draft. Dates are real. The dialogue is summarized, not a
+  transcript. Other sessions will fill in the close-ups.
+</p>
+
+<!-- ========== ADEPT of the whole story ========== -->
+
+<h2 id="adept">The whole story, ADEPT-style</h2>
+
+<p>
+  <a href="https://betterexplained.com/articles/adept-method/">ADEPT</a>
+  is a way to explain a hard thing: Analogy, Diagram, Example,
+  Plain English, then Technical. We use it here because this page is
+  for you, not for the agents who typed the file.
+</p>
+
+<dl class="adept">
+  <dt>Analogy</dt>
+  <dd>
+    First someone wrote the recipe. Then a cook followed it, one bowl
+    at a time, until there was dinner. Then other cooks cut a window
+    in the kitchen wall so you could watch the stove. Then they kept
+    rewriting the sign next to the window until a first-time visitor
+    could follow what the stove was doing.
+  </dd>
+
+  <dt>Diagram</dt>
+  <dd>
+    Two pictures matter. The game is a factory line. The build is a
+    short timeline. They are the same idea at two speeds.
+  </dd>
+
+  <dt>Example</dt>
+  <dd>
+    Open the game. Press <kbd>X</kbd>. Hold an arrow key. The rows
+    light from the top down. That light is what every phase below was
+    trying to make visible.
+  </dd>
+
+  <dt>Plain English</dt>
+  <dd>
+    A teacher wrote strict rules. An agent built a walkable world
+    overnight. Other agents added a panel that shows the rules
+    happening live, then rewrote the panel until it stopped lying
+    to a first-time reader. Someone else pointed the classroom URL
+    at the game.
+  </dd>
+
+  <dt>Technical</dt>
+  <dd>
+    <code>game.html</code> · 1,800 lines · ten numbered sections plus
+    an optional eleventh · no build, no dependencies · PRs
+    <a href="https://github.com/lpcode808/demo-openworld-howto-videogame/pull/2">#2</a>
+    through
+    <a href="https://github.com/lpcode808/demo-openworld-howto-videogame/pull/7">#7</a>.
+  </dd>
+</dl>
+
+<!-- ========== Two pictures ========== -->
+
+<h2 id="pictures">The two pictures</h2>
+
+<p>
+  The file is one sentence, sixty times a second. Only the middle of
+  it is allowed to change the world.
+</p>
+
+<pre class="picture">
+keyboard --> INPUT --> intents --> UPDATE --> state --> RENDER --> screen
+                         write      write      read
+</pre>
+
+<p>
+  The build is that sentence, stretched across three days. Each box
+  below is a phase. Times are Hawaii time, because that is where the
+  classroom is.
+</p>
+
+<pre class="picture">
+Sep 1  3:40pm    the recipe          a teacher writes the rules
+Sep 1  ~4:00pm   the kitchen check   does a blank browser even work?
+Sep 1  evening   dinner              the game, in ten steps
+Sep 2  ~2:00am   the window          X-ray: watch the line run
+Sep 2  morning   freeze-frame        P pauses, . steps one tick
+Sep 2  afternoon teach the window    the reading guide mentions X
+Sep 2  evening   the window talks    a live diagram + "ask an AI"
+Sep 2  night     the classroom door  the site URL opens the game
+Sep 2  / Sep 3   five words that lied the panel stops misleading
+</pre>
+
+<!-- ========== Three threads ========== -->
+
+<h2 id="threads">Three agent threads</h2>
+
+<p>
+  That is the honest shape. Not a dozen people. Three long chats,
+  plus the afternoon a teacher wrote the rules.
+</p>
+
+<div class="threads">
+  <section class="thread">
+    <h3>1 · The overnight builder</h3>
+    <p>
+      Sep 1, evening. One Cursor cloud agent, following the spec
+      step by step. Result: a playable file and the two reading
+      guides. Pull request #2.
+    </p>
+  </section>
+  <section class="thread">
+    <h3>2 · The X-ray writers</h3>
+    <p>
+      Sep 2 into Sep 3. A run of Claude Code sessions. They cut the
+      window, taught it to pause, made it explain itself, then
+      rewrote five sentences that were lying. Pull requests #3, #4,
+      #5, #7.
+    </p>
+  </section>
+  <section class="thread">
+    <h3>3 · The classroom URL</h3>
+    <p>
+      Sep 2, late. A separate Cursor agent. The school link was
+      already live — it just opened the README. Now it opens the
+      game. Pull request #6.
+    </p>
+  </section>
+</div>
+
+<!-- ========== PHASE 0 ========== -->
+<article class="phase" id="phase-0">
+  <header class="when">
+    <span class="tag">Phase 0 · Sep 1, 3:40pm</span>
+    <h3>Someone writes the recipe first</h3>
+  </header>
+  <p>
+    Before any agent typed a game, a teacher wrote the rules. That
+    file is <a href="PRD.md">PRD.md</a>. The first line that settles
+    every later argument:
+  </p>
+  <p>
+    <strong>The user is a 15-year-old reading the source, not a
+    player.</strong>
+  </p>
+  <p>
+    Why that line exists: a fun game with clever code would hide the
+    lesson. A slightly duller game you can trace in fifteen minutes
+    is the whole point.
+  </p>
+  <ul>
+    <li>One file. No build. No internet. Microsoft Edge and Chrome.</li>
+    <li>Ten numbered sections, in a fixed order. Render never writes.</li>
+    <li>Four deliverables together: the game, a teardown, ten edits,
+        a twelve-line README.</li>
+    <li>Stop at P1. Combat and sound are listed so nobody "helpfully"
+        adds them.</li>
+  </ul>
+  <p class="hint">
+    Why this phase: agents wander without a spine. The overnight
+    build was told to follow section 9 of that file, in order, and
+    commit after each step.
+  </p>
+  <!-- scaffold-phase-0: the original student ask; why open-world -->
+</article>
+
+<!-- ========== PHASE 1 ========== -->
+<article class="phase" id="phase-1">
+  <header class="when">
+    <span class="tag">Phase 1 · Sep 1, about 4:00pm · PR #1</span>
+    <h3>Does a blank browser even do this?</h3>
+  </header>
+  <p>
+    The game did not exist yet. A short agent session checked the
+    kitchen: Chrome 148 was installed, and a throwaway page in
+    <code>/tmp</code> proved Canvas, keys, a game loop, and
+    save/load all work from <code>file://</code>.
+  </p>
+  <p>
+    One heads-up they left for the next session: Chrome DevTools
+    paints a red "unsafe file URL" line on every local page. That
+    is the browser talking to itself, not a bug in the game.
+  </p>
+  <p class="hint">
+    Test: a six-check smoke page, movement and save/load on screen.
+    Nothing from that page was kept — it was not a deliverable.
+  </p>
+  <!-- scaffold-phase-1: env-setup thread, smoke-page recording -->
+</article>
+
+<!-- ========== PHASE 2 ========== -->
+<article class="phase" id="phase-2">
+  <header class="when">
+    <span class="tag">Phase 2 · Sep 1 evening, merged 10:32pm · PR #2</span>
+    <h3>Overnight: dinner, one bowl at a time</h3>
+  </header>
+  <p>
+    This is the first of the three long threads. A Cursor cloud
+    agent was pointed at the spec and told to stop at P1. It built
+    <code>game.html</code> in the listed order, committing after
+    each step — except steps 5 and 6, which are the same idea
+    (giving an item <em>is</em> flipping a quest flag), so they
+    landed together.
+  </p>
+  <pre class="picture">
+1  empty file, ten banners
+2  CONFIG + DATA + STATE     the world as text, nothing moving
+3  LOOP + RENDER             a still map on screen
+4  INPUT + UPDATE + COLLIDE  you walk; trees stop you
+5+6  people, items, quests   talk, pick up, open a bridge
+7  a second map              a cave, through a door
+8  SAVE                      K, L, N, a "saved" notice
+9  prove RENDER is pure      plus a student-proof read-through
+10 TEARDOWN, CHANGE-ME, README   written against the finished file
+  </pre>
+  <p>
+    Extra things they added because a reader would trip: a file map
+    at the top, sandy trails to each outdoor item, and boot-time
+    checks that name a mistyped map row instead of failing silently.
+  </p>
+  <p class="hint">
+    Tests they actually ran: 1,222 lines, no line over 100
+    characters, no banned string, all ten banners, a real-Chrome
+    playthrough of three quests / both maps / save / reload in
+    35 seconds. Edge was not on the machine. Still isn't, as of
+    this draft.
+  </p>
+  <!-- scaffold-phase-2: herb-pickup debug, per-step screenshots -->
+</article>
+
+<!-- ========== PHASE 3 ========== -->
+<article class="phase" id="phase-3">
+  <header class="when">
+    <span class="tag">Phase 3 · Sep 2, about 2:00am · PR #3</span>
+    <h3>Cut a window in the kitchen wall</h3>
+  </header>
+  <p>
+    Playing the game still hid the lesson. The second thread starts
+    here: an optional eleventh section, opened with <kbd>X</kbd>,
+    that shows the factory line live. Intents, a log of what just
+    changed, the tile you face, the whole of <code>state</code>,
+    the heartbeat.
+  </p>
+  <p>
+    The important constraint, said out loud: delete section 11, the
+    side panel, and a few lines in the loop, and the game is
+    exactly the same. The window is bolted on. It is not the house.
+  </p>
+  <p class="hint">
+    Why: a student should see the pipe while walking, not only by
+    reading. Test: the same mechanical checks, plus a headless
+    playthrough. The reading-guide line numbers had to be refreshed
+    — a new section shoves every later line down.
+  </p>
+  <!-- scaffold-phase-3: first X-ray screenshots, the three LOOP lines -->
+</article>
+
+<!-- ========== PHASE 4 ========== -->
+<article class="phase" id="phase-4">
+  <header class="when">
+    <span class="tag">Phase 4 · Sep 2, morning · PR #4</span>
+    <h3>Freeze one heartbeat</h3>
+  </header>
+  <p>
+    Sixty frames a second is too fast to watch. So: <kbd>P</kbd>
+    freezes the world (drawing keeps going), and <kbd>.</kbd> runs
+    exactly one update. Resume does not fast-forward through a pile
+    of leftover time — the clock throws those seconds away on
+    purpose.
+  </p>
+  <p>
+    Pause is not saved. Only "is the panel open?" survives a
+    reload. Hide the panel and the world starts again, so a frozen
+    game can never sit there with no explanation.
+  </p>
+  <p class="hint">
+    How this one was staffed, roughly: a stronger model wrote the
+    spec and judged; a cheaper model typed; the session re-ran the
+    tools before each commit. That pattern repeats in the rest of
+    this thread.
+  </p>
+  <!-- scaffold-phase-4: pause-accumulator diagram, step demo -->
+</article>
+
+<!-- ========== PHASE 5 ========== -->
+<article class="phase" id="phase-5">
+  <header class="when">
+    <span class="tag">Phase 5 · Sep 2, afternoon into evening · docs, then PR #5</span>
+    <h3>The window has to explain itself</h3>
+  </header>
+  <p>
+    A user test found the gap that mattered: the panel existed, and
+    the student guide never mentioned it. Someone could do all six
+    reads and never press <kbd>X</kbd>. So the guides got a "before
+    you start" pointer, and the README grew the new keys. The game
+    file was not touched in that hour.
+  </p>
+  <p>
+    Then they built a proof that the window really unbolts: a tool
+    strips section 11 from a copy and plays the leftover game. And
+    they taught a robot to press <kbd>X</kbd>, <kbd>P</kbd>, and
+    <kbd>.</kbd> so those rules stay true after the next edit.
+  </p>
+  <p>
+    Evening: the panel was accurate and terse, and that was the
+    problem. A student who did not already know the arrow could not
+    learn it from five boxes of field names. v1.3 adds a seven-row
+    live diagram, a one-line caption under each box, and two
+    buttons that copy this exact moment into a question for any AI.
+    The panel learned to scroll itself so a school laptop does not
+    lose the game off the bottom of the screen.
+  </p>
+  <p class="hint">
+    Tests: four tools, all green. Playthrough 36 checks, 28 seconds,
+    zero console lines, run three times. After stripping the X-ray,
+    the leftover game was still 1,243 lines — byte-identical to
+    before this evening. That is the real proof the new words stayed
+    inside the window. Budget warning they left: 1,798 of 1,800
+    target lines. Anything else has to pay for itself.
+  </p>
+  <!-- scaffold-phase-5: 1366x650 scroll shots, the clipboard gesture -->
+</article>
+
+<!-- ========== PHASE 6 ========== -->
+<article class="phase" id="phase-6">
+  <header class="when">
+    <span class="tag">Phase 6 · Sep 2 night / Sep 3 · PR #6</span>
+    <h3>The classroom door was already open</h3>
+  </header>
+  <p>
+    Third thread. The GitHub Pages URL was already publishing the
+    repo. It rendered the README — "download and double-click" —
+    and never mentioned that <code>game.html</code> was sitting
+    right there, playable. That is why it felt like the game was
+    not on the web.
+  </p>
+  <p>
+    Fix: a tiny <code>index.html</code> that redirects to the game.
+    The README's first link becomes "play it here." The spec adds
+    one sentence: Pages is extra, not instead. The file on disk
+    still opens with the network off.
+  </p>
+  <p class="hint">
+    Test: walked the live root after merge; it opened the game;
+    Chrome console empty. They could not set the GitHub "homepage"
+    field from that session (permission denied). Edge on a school
+    laptop is still on the to-do list.
+  </p>
+  <!-- scaffold-phase-6: before/after Pages screenshots -->
+</article>
+
+<!-- ========== PHASE 7 ========== -->
+<article class="phase" id="phase-7">
+  <header class="when">
+    <span class="tag">Phase 7 · Sep 2 afternoon / Sep 3 · PR #7</span>
+    <h3>Five sentences that were lying</h3>
+  </header>
+  <p>
+    Back in the X-ray thread. A second look — screenshots at school
+    resolution, one reader pretending to be fifteen, one reading as
+    a learning-UX reviewer, none of them sharing notes. The top two
+    findings matched. Those two were treated as certain.
+  </p>
+  <ul>
+    <li>After <kbd>P</kbd>, the keyboard row said you pressed
+        <kbd>p</kbd>, as if that key went down the pipe. It does
+        not. The game never sees it.</li>
+    <li>UPDATE lit up while the state row said nothing changed.
+        Between steps, only two timers move, and the log hides
+        them on purpose. The row now says "timers only."</li>
+    <li>An empty prompt box ate the first screenful. Hidden until
+        you copy something.</li>
+    <li>A caption claimed nothing lives outside <code>state</code>,
+        under a box that is visibly not <code>state</code>.</li>
+    <li>The diagram was a readout. It is now an invitation: hold
+        an arrow, watch the rows light.</li>
+  </ul>
+  <p>
+    Eighteen lines went in. Eighteen comment lines came out. The
+    file is exactly 1,800 lines, and no student-facing line number
+    in the guides had to move.
+  </p>
+  <p class="hint">
+    Tests: 44 playthrough checks, 29 seconds, twice, zero console
+    output. Still nobody has opened this in Edge. The new thing to
+    eyeball there: the widest diagram row is 54 characters, and a
+    fat scrollbar plus Courier New might clip it.
+  </p>
+  <!-- scaffold-phase-7: the five screenshot states, rejected ideas -->
+</article>
+
+<!-- ========== Tests, as their own idea ========== -->
+
+<h2 id="tests">How they knew it worked</h2>
+
+<p>
+  Agents do not get a gold star for typing. They have to show the
+  work. Four small Node scripts live in <code>tools/</code>. They
+  are for maintainers, not for you — the spec refuses a test suite
+  as a student deliverable. Still worth knowing they exist:
+</p>
+
+<ul>
+  <li><code>check.mjs</code> — line count, line length, banned
+      words, banners, "RENDER never writes."</li>
+  <li><code>playthrough.mjs</code> — a headless browser walks both
+      maps, does all three quests, saves, reloads, then exercises
+      the X-ray.</li>
+  <li><code>check-xray-removable.mjs</code> — delete the window,
+      the leftover game still walks.</li>
+  <li><code>check-doc-lines.mjs</code> — the teardown still points
+      at the right line numbers.</li>
+</ul>
+
+<p>
+  The five-minute playthrough the spec asked for came in around
+  half a minute, every time they timed it.
+</p>
+
+<p class="hint">
+  Honest gap, repeated in every handoff: this file has not been
+  opened in Microsoft Edge on a managed school laptop. That is the
+  next human test, not the next agent task.
+</p>
+
+<!-- ========== What's next ========== -->
+
+<h2 id="next">What this page is waiting for</h2>
+
+<p>
+  This is scaffolding. The spine is here so the next session does
+  not have to rediscover the shape. Useful additions, if you are
+  that session:
+</p>
+
+<ul>
+  <li>A quote or two from an agent thread, if it teaches.</li>
+  <li>A screenshot under the phase it belongs to.</li>
+  <li>A correction. Times are from git and the handoff file, not
+      from sitting in the room.</li>
+  <li>The Edge-on-a-school-laptop result, when someone finally
+      does it.</li>
+</ul>
+
+<p>
+  Please extend a phase. Do not rewrite the spine unless the spine
+  is wrong. Each phase is <code>&lt;article id="phase-N"&gt;</code>.
+</p>
+
+<footer>
+  <p>
+    <a href="game.html">Play the game</a>
+    ·
+    <a href="TEARDOWN.md">Six reads</a>
+    ·
+    <a href="CHANGE-ME.md">Ten edits</a>
+    ·
+    <a href="https://github.com/lpcode808/demo-openworld-howto-videogame">The repo</a>
+  </p>
+  <p>
+    ADEPT framing from
+    <a href="https://betterexplained.com/articles/adept-method/">Kalid Azad / BetterExplained</a>.
+    First draft, 3 September 2026.
+  </p>
+</footer>
+
+</main>
+</body>
+</html>

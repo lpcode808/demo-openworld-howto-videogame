@@ -378,3 +378,6 @@ Commit after each step. Do not refactor a finished section while building a late
 - **GitHub Pages is extra, not instead.** `game.html` still opens from disk with the network
   off and still makes zero network requests. The Pages URL is for a classroom that already
   has a connection. `index.html` is a redirect to `game.html`, not a fifth deliverable.
+- **`how.html` is extra, not instead.** A student-facing time-lapse of how the file got
+  written (ADEPT framing, agent phases). It is not a fifth deliverable. The four files in
+  §2 are still the product. Later sessions should extend a phase, not rebuild the spine.

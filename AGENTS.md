@@ -56,6 +56,12 @@ git log --oneline HEAD..origin/main
 If that log is not empty, branch from `origin/main`, not the snapshot. Re-read `PRD.md` and this
 file from disk after checkout — parallel Read returns stale content.
 
+## The build-history page — `how.html`
+
+Student-facing time-lapse of how `game.html` got written. Extra, not a fifth deliverable.
+First draft is scaffolding: extend a `<article id="phase-N">`, do not rewrite the spine
+unless the spine is wrong. Broad strokes, ADEPT, timestamps, why — not transcripts.
+
 ## Exit breadcrumb — `HANDOFF.md`
 
 <!-- breadcrumb-convention:v1 -->

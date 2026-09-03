@@ -7,8 +7,7 @@
      one" so the console never shows a missing-file error. -->
 <link rel="icon" href="data:,">
 <style>
-  /* A dark frame around one canvas, plus an optional side panel (the X-ray,
-     section 11). Everything in the game itself is drawn on the canvas below. */
+  /* Dark frame, one canvas, optional X-ray panel. Game is drawn below. */
   body {
     margin: 0;
     background: #101018;
@@ -33,6 +32,7 @@
     font-size: 13px;
     color: #888;
   }
+  p a { color: #ffd75e; }
   /* The X-ray panel. Its own small stylesheet so it is obvious, just from
      reading this file top to bottom, that deleting it costs nothing else. */
   aside#xray {
@@ -121,7 +121,7 @@
   Arrow keys or WASD to walk. Space to talk and to pick a dialogue choice.
   K saves, L loads, N starts over. X opens the X-ray. Inside the X-ray, P
   pauses, . runs one tick, and two buttons copy the moment into a question
-  for an AI. Open this file in a text editor to see how it works.
+  for an AI. <a href="how.html">How this was made</a> · or open this file.
 </p>
 </main>
 <!-- The X-ray: a window onto the pipe. Hidden until you press X. Filled in by
