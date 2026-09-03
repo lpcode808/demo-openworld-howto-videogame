@@ -162,6 +162,37 @@
     gap: 16px;
     margin: 28px 0 8px;
   }
+  /* Visual breaks use the page's own grammar: dark panels, grey lines,
+     monospace labels, and one gold thing worth following. */
+  figure.infographic { margin: 28px 0; padding: 18px; background: #15151f; border: 1px solid #2a2a3a; }
+  .infographic figcaption { margin: 0 0 14px; color: #ffd75e; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; }
+  .infographic-note { margin: 14px 0 0; color: #8a8a99; font-size: 12px; }
+  .pipeline, .pause-path { display: flex; align-items: stretch; gap: 8px; overflow-x: auto; padding-bottom: 2px; }
+  .pipeline-node, .pause-state { box-sizing: border-box; min-width: 88px; flex: 1 0 88px; padding: 10px 8px; border: 1px solid #3a3a4c; background: #101018; color: #ddd; text-align: center; }
+  .pipeline-node strong, .pause-state strong { display: block; color: #eee; font-size: 12px; font-weight: normal; }
+  .pipeline-node small, .pause-state small { display: block; margin-top: 5px; color: #7a7a88; font-size: 11px; line-height: 1.35; }
+  .pipeline-node.hot, .pause-state.hot, .bolt-panel { border-color: #b49b4d; }
+  .pipeline-node.hot strong, .pause-state.hot strong, .bolt-panel strong { color: #ffd75e; }
+  .pipeline-arrow, .pause-arrow, .bolt-link { align-self: center; flex: 0 0 auto; color: #ffd75e; font-size: 18px; line-height: 1; }
+  .build-timeline { margin: 0; padding: 0; list-style: none; }
+  .build-timeline li { display: grid; grid-template-columns: 88px 20px 1fr; gap: 10px; min-height: 42px; }
+  .build-timeline time { color: #8a8a99; font-size: 11px; line-height: 1.35; text-align: right; }
+  .timeline-dot { position: relative; width: 9px; height: 9px; margin-top: 3px; border: 1px solid #ffd75e; background: #15151f; }
+  .build-timeline li:not(:last-child) .timeline-dot::after { position: absolute; top: 9px; left: 3px; width: 1px; height: 34px; background: #3a3a4c; content: ""; }
+  .timeline-copy { padding-bottom: 15px; color: #c8c8d0; font-size: 12px; line-height: 1.35; }
+  .timeline-copy strong { color: #eee; font-weight: normal; }
+  .bolt-layout { display: grid; grid-template-columns: 1fr auto 1fr; gap: 12px; align-items: center; }
+  .bolt-core, .bolt-panel { box-sizing: border-box; min-height: 86px; padding: 14px; border: 1px solid #3a3a4c; background: #101018; }
+  .bolt-core strong, .bolt-panel strong { display: block; color: #eee; font-size: 13px; font-weight: normal; }
+  .bolt-core small, .bolt-panel small { display: block; margin-top: 7px; color: #8a8a99; font-size: 11px; line-height: 1.35; }
+  .bolt-link { display: grid; gap: 4px; text-align: center; font-size: 16px; }
+  .bolt-link small { color: #7a7a88; font-size: 10px; }
+  .test-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  .test-card { min-height: 84px; padding: 12px; border: 1px solid #3a3a4c; background: #101018; }
+  .test-card .test-number { display: block; margin-bottom: 5px; color: #ffd75e; font-size: 11px; }
+  .test-card strong { display: block; color: #eee; font-size: 12px; font-weight: normal; }
+  .test-card small { display: block; margin-top: 5px; color: #8a8a99; font-size: 11px; line-height: 1.35; }
+  @media (max-width: 520px) { .bolt-layout { grid-template-columns: 1fr; } .bolt-link { grid-template-columns: 1fr auto 1fr; align-items: center; } .bolt-link small { grid-column: 1 / -1; } .test-grid { grid-template-columns: 1fr; } }
   @media (min-width: 720px) {
     .threads {
       grid-template-columns: 1fr 1fr 1fr;
@@ -377,10 +408,19 @@
   it is allowed to change the world.
 </p>
 
-<pre class="picture">
-keyboard --> INPUT --> intents --> UPDATE --> state --> RENDER --> screen
-                         write      write      read
-</pre>
+<figure class="infographic" aria-label="The game pipeline">
+  <figcaption>One frame: the factory line</figcaption>
+  <div class="pipeline">
+    <div class="pipeline-node"><strong>keyboard</strong><small>your key</small></div><span class="pipeline-arrow" aria-hidden="true">→</span>
+    <div class="pipeline-node"><strong>INPUT</strong><small>writes a note</small></div><span class="pipeline-arrow" aria-hidden="true">→</span>
+    <div class="pipeline-node"><strong>intents</strong><small>what you meant</small></div><span class="pipeline-arrow" aria-hidden="true">→</span>
+    <div class="pipeline-node hot"><strong>UPDATE</strong><small>the only writer</small></div><span class="pipeline-arrow" aria-hidden="true">→</span>
+    <div class="pipeline-node"><strong>state</strong><small>what is true</small></div><span class="pipeline-arrow" aria-hidden="true">→</span>
+    <div class="pipeline-node"><strong>RENDER</strong><small>reads only</small></div><span class="pipeline-arrow" aria-hidden="true">→</span>
+    <div class="pipeline-node"><strong>screen</strong><small>the picture</small></div>
+  </div>
+  <p class="infographic-note">Gold marks the one stage allowed to change the world.</p>
+</figure>
 
 <p>
   The build is that sentence, stretched across a day and a half. Each
@@ -389,18 +429,21 @@ keyboard --> INPUT --> intents --> UPDATE --> state --> RENDER --> screen
   branch.
 </p>
 
-<pre class="picture">
-Sep 1  3:40pm    the recipe            a teacher writes the rules
-Sep 1  4:00pm    the kitchen check     does a blank browser even work?
-Sep 1  10:30pm   dinner                the game, in ten steps
-Sep 2  2:00am    the window            X-ray: watch the line run
-Sep 2  8:50am    freeze-frame          P pauses, . steps one tick
-Sep 2  9:10am    teach the window      the reading guide mentions X
-Sep 2  1:45pm    the window talks      a live diagram + "ask an AI"
-Sep 2  2:20pm    the classroom door    the site URL opens the game
-Sep 2  4:30pm    five sentences lied   the panel stops misleading
-Sep 2  9:30pm    this page             the time-lapse gets written
-</pre>
+<figure class="infographic" aria-label="Thirty-hour build timeline">
+  <figcaption>Thirty hours: the build, in order</figcaption>
+  <ol class="build-timeline">
+    <li><time>Sep 1<br>3:40pm</time><span class="timeline-dot"></span><div class="timeline-copy"><strong>Recipe</strong> — a teacher writes the rules</div></li>
+    <li><time>Sep 1<br>4:00pm</time><span class="timeline-dot"></span><div class="timeline-copy"><strong>Kitchen check</strong> — can a blank browser do this?</div></li>
+    <li><time>Sep 1<br>10:30pm</time><span class="timeline-dot"></span><div class="timeline-copy"><strong>Dinner</strong> — the game, in ten steps</div></li>
+    <li><time>Sep 2<br>2:00am</time><span class="timeline-dot"></span><div class="timeline-copy"><strong>Window</strong> — X-ray: watch the line run</div></li>
+    <li><time>Sep 2<br>8:50am</time><span class="timeline-dot"></span><div class="timeline-copy"><strong>Freeze-frame</strong> — P pauses; . steps one tick</div></li>
+    <li><time>Sep 2<br>9:10am</time><span class="timeline-dot"></span><div class="timeline-copy"><strong>Teach the window</strong> — the guide mentions X</div></li>
+    <li><time>Sep 2<br>1:45pm</time><span class="timeline-dot"></span><div class="timeline-copy"><strong>Window talks</strong> — live diagram + ask an AI</div></li>
+    <li><time>Sep 2<br>2:20pm</time><span class="timeline-dot"></span><div class="timeline-copy"><strong>Classroom door</strong> — the site opens the game</div></li>
+    <li><time>Sep 2<br>4:30pm</time><span class="timeline-dot"></span><div class="timeline-copy"><strong>Five sentences lied</strong> — the panel stops misleading</div></li>
+    <li><time>Sep 2<br>9:30pm</time><span class="timeline-dot"></span><div class="timeline-copy"><strong>This page</strong> — the time-lapse gets written</div></li>
+  </ol>
+</figure>
 
 <p class="hint">
   Thirty hours, not three days. The first draft of this page said
@@ -587,6 +630,16 @@ Sep 2  9:30pm    this page             the time-lapse gets written
     side panel, and a few lines in the loop, and the game is
     exactly the same. The window is bolted on. It is not the house.
   </p>
+
+  <figure class="infographic" aria-label="The X-ray is a removable side panel">
+    <figcaption>A window, not a new room</figcaption>
+    <div class="bolt-layout">
+      <div class="bolt-core"><strong>GAME</strong><small>sections 1–10: keyboard, rules, state, and pixels</small></div>
+      <div class="bolt-link" aria-hidden="true"><span>⇄</span><small>four LOOP lines<br>read only</small></div>
+      <div class="bolt-panel"><strong>X-RAY</strong><small>section 11: shows what the game already knows</small></div>
+    </div>
+    <p class="infographic-note">Remove the gold panel and its four hooks: the game still runs.</p>
+  </figure>
   <p class="hint">
     <strong>Why:</strong> a student should see the pipe while
     walking, not only by reading.
@@ -708,14 +761,16 @@ one turn of the loop
     a second it can afford. Pause is one question asked of that bank,
     before the spending starts:
   </p>
-  <pre class="picture">
-every frame     time since last frame  →  into the bank
-                while the bank holds a whole slice (1/60 s): run UPDATE, spend one slice
-
-not paused      the bank fills and drains; UPDATE runs 0, 1 or 2 times a frame
-paused          this frame's time is thrown away; bank = 0; UPDATE never runs
-paused, then .  bank = exactly one slice; UPDATE runs once; then quiet again
-  </pre>
+  <figure class="infographic" aria-label="Pause and single-step behavior">
+  <figcaption>One fixed-timestep loop</figcaption>
+  <div class="pause-path">
+    <div class="pause-state hot"><strong>RUN</strong><small>time bank fills and drains</small></div><span class="pause-arrow" aria-hidden="true">P →</span>
+    <div class="pause-state"><strong>PAUSED</strong><small>throw time away; keep drawing</small></div><span class="pause-arrow" aria-hidden="true">. →</span>
+    <div class="pause-state hot"><strong>ONE UPDATE</strong><small>exactly one 1/60 s slice</small></div><span class="pause-arrow" aria-hidden="true">→</span>
+    <div class="pause-state"><strong>PAUSED</strong><small>quiet again, no backlog</small></div>
+  </div>
+  <p class="infographic-note">Resume never fast-forwards: paused seconds were deliberately discarded.</p>
+</figure>
   <p>
     The whole decision is five lines in section 11. The reason it
     throws time away instead of saving it: if paused frames kept
@@ -1027,17 +1082,15 @@ after pressing P
   as a student deliverable. Still worth knowing they exist:
 </p>
 
-<ul>
-  <li><code>check.mjs</code> — line count, line length, banned
-      words, banners, "RENDER never writes."</li>
-  <li><code>playthrough.mjs</code> — a headless browser walks both
-      maps, does all three quests, saves, reloads, then exercises
-      the X-ray.</li>
-  <li><code>check-xray-removable.mjs</code> — delete the window,
-      the leftover game still walks.</li>
-  <li><code>check-doc-lines.mjs</code> — the teardown still points
-      at the right line numbers.</li>
-</ul>
+<figure class="infographic" aria-label="Four maintainer checks">
+  <figcaption>Four small checks</figcaption>
+  <div class="test-grid">
+    <section class="test-card"><span class="test-number">01</span><strong>check.mjs</strong><small>size, line length, banned words, banners, and render purity</small></section>
+    <section class="test-card"><span class="test-number">02</span><strong>playthrough.mjs</strong><small>a headless browser walks, quests, saves, reloads, and opens X-ray</small></section>
+    <section class="test-card"><span class="test-number">03</span><strong>check-xray-removable.mjs</strong><small>remove the window; the leftover game still walks</small></section>
+    <section class="test-card"><span class="test-number">04</span><strong>check-doc-lines.mjs</strong><small>the guides still point to the exact source lines</small></section>
+  </div>
+</figure>
 
 <p>
   The five-minute playthrough the spec asked for came in around

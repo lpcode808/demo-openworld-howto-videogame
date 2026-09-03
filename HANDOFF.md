@@ -358,3 +358,8 @@ elsewhere. Desktop agents read the newest entry after syncing.
 - Routing: → the Edge check is now the most overdue thing in this repo. After that, the two open
   student ideas are `CHANGE-ME.md` extras A (per-character voices, incl. leetspeak — still the
   maintainer's tone call) and C (sound, still on the P2 list). Neither should be built unasked.
+
+## 2026-09-03 — build-history infographics
+- Replaced five dense text diagrams in how.html with responsive native HTML/CSS visuals: the frame pipeline, build timeline, removable X-ray, pause/step flow, and maintainer checks.
+- Styling reuses the page's dark panels, grey rules, monospace labels, and gold highlight. No scripts, dependencies, or game files changed.
+- Routing: review and merge pull request for the infographic page update.
