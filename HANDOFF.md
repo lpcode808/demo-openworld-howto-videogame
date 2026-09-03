@@ -156,3 +156,36 @@ elsewhere. Desktop agents read the newest entry after syncing.
   to `game.html`; walked in Chrome, console empty.
 - README on `main` has [play it on GitHub Pages](https://lpcode808.github.io/demo-openworld-howto-videogame/).
 - Routing: none for Pages. Edge-on-a-school-laptop check is still outstanding.
+
+### 2026-09-02-1622 — X-ray v1.4: second evaluation pass on the panel wording — Claude Code
+- Asked for: another evaluation pass on the new UX for understanding the piping (not the game
+  mechanic). Method: a real-Chromium screenshot pass at 1366×650 in five panel states, my own
+  read, then two independent Sonnet-model reviewers (one reading as a fifteen-year-old, one as
+  a learning-UX reviewer) given the screenshots and section 11 but not my notes. Both landed on
+  the same two top findings as the screenshot pass, which is why those two were treated as
+  certain and the rest as judgement calls. PRD §4c records all five and the two rejections.
+- **Changed in `game.html`, all inside section 11, the `<aside>` and its CSS:** the `keyboard`
+  row names X/P/`.` (any non-game key, via INPUT's own `keysTheGameUses`) as skipped by INPUT;
+  the `3 · state` row now says `this frame: #n …`, `timers only, last #n …` or `no change, last
+  #n …` (a `stateMoved` boolean from `showXray`, one more argument to `showPipe`); the prompt
+  textarea is `hidden` until the first copy so the change log is above the fold; the STATE and
+  UPDATE captions stopped over-claiming (the two skipped timer fields are now named); the
+  diagram caption invites an experiment and explains the 4-5-6-3-7 numbering. The file is
+  **exactly 1,800 lines**: 18 added lines were paid for by trimming 18 comment lines (section 11
+  and the stylesheet) so no student-facing citation moved. `check-doc-lines.mjs` is clean; the
+  only doc citation that changed is §11's end line (1795 → 1797).
+- One thing to know about the removability proof: the stripped game is now 1,242 lines, not the
+  1,243 earlier entries quote, because one shortened comment (the `body` CSS comment) sits
+  outside the X-ray. Same game; the byte-identity claim from the v1.3 entry no longer holds.
+- Docs: `TEARDOWN.md` Read 4 gained a paragraph tying `stepCooldown` to the new `timers only`
+  row and the `not a game key` row; the panel map's state row was re-lettered. `PRD.md` gained
+  §4c and five v1.4 §8 criteria. README and CHANGE-ME needed no change.
+- Rejected on purpose: rewording the UPDATE row on the single 16 ms frame a `.` step runs (the
+  `this frame:` row and the log already show the step), and reordering the detail boxes by
+  section number (would separate UPDATE from the COLLIDE box that explains its decision).
+- Not done, still: nobody has opened this in **Edge**. New Edge-specific thing to eyeball: the
+  widest pipe row is now 54 monospace characters, which fits 400 px in Chromium with an overlay
+  scrollbar; with a classic 17 px scrollbar and Courier New it might show a horizontal scroll
+  inside the diagram box. Consolas (Edge's default) fits. P2 still deliberately untouched.
+- Routing: → maintainer opens `game.html` in Edge, presses X, holds an arrow, and checks the
+  `3 · state` row reads without a horizontal scrollbar; then run the student test.
