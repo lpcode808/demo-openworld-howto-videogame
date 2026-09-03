@@ -1058,6 +1058,124 @@ async function runXrayChecks(page, world) {
   await checkAskTextareaVisibleAfterFirstClick(page);
   await checkAskDrawButton(page);
   await checkClipboardReceivedPrompt(page);
+  await runPlaytestFixChecks(page, world);
+}
+
+// ------------------------------------------------------------------
+// v1.5: the two things the first student playtest asked for — a direction
+// that follows the key you actually pressed last, and a speedrun clock.
+// PRD §4d.
+// ------------------------------------------------------------------
+
+// The report was "spamming the left and right arrow keys, the game seemed
+// to struggle with processing my direction". Before the fix, twelve
+// alternating taps ending on Right left the player facing left, because
+// the two keys overlap for a few milliseconds and updatePlayerMovement
+// read the held-key flags in a fixed order.
+// Both direction checks want a known, open stretch of ground. Clearing the
+// save and reloading puts the player back on row 14 of the overworld, where
+// the tiles either side are path, so a blocked step can never be the reason
+// a check fails.
+async function resetToStartingTile(page, world) {
+  await page.evaluate((key) => localStorage.removeItem(key), world.saveSlotName);
+  await page.reload();
+  await waitForCanvasReady(page);
+  const state = await waitForCondition(page,
+    (s) => s.player.tileX === 3 && s.player.tileY === 14, 2000, 'the starting tile (3,14)');
+  return state;
+}
+
+async function checkMashingLeftRightFollowsTheNewestKey(page, world) {
+  await resetToStartingTile(page, world);
+  for (let round = 0; round < 12; round++) {
+    await page.keyboard.down('ArrowLeft');
+    await page.waitForTimeout(30);
+    await page.keyboard.up('ArrowLeft');
+    await page.keyboard.down('ArrowRight');
+    await page.waitForTimeout(30);
+    await page.keyboard.up('ArrowRight');
+  }
+  const state = await waitForCondition(page, (s) => s.player.facing === 'right', 1000,
+    'player to face right after 12 left/right taps ending on ArrowRight');
+  assertTrue(state.player.facing === 'right',
+    'expected facing right after mashing left/right and ending on right, got ' +
+    state.player.facing);
+  console.log('PASS — mashing left/right ends facing the key pressed last, not the first `if`');
+}
+
+// The other half of the same bug: updatePlayerMovement returns early while
+// stepCooldown is running, so a tap released inside that window used to be
+// dropped. intents.newestMoveDirection survives the release, so the step
+// still happens once the cooldown expires.
+async function checkShortTapSurvivesTheStepCooldown(page, world) {
+  await resetToStartingTile(page, world);
+  // Start a step so a cooldown is definitely running, then release.
+  await tapKey(page, 'ArrowLeft', 40);
+  await page.waitForTimeout(10);
+  const before = await getState(page);
+  // 15 ms is far shorter than one step at playerStepsPerSecond = 7 (143 ms).
+  await tapKey(page, 'ArrowRight', 15);
+  const after = await waitForCondition(page, (state) => state.player.facing === 'right', 1000,
+    'a 15 ms tap of ArrowRight to be honoured after the step cooldown');
+  assertTrue(after.player.tileX === before.player.tileX + 1,
+    'expected the short tap to move one tile east from ' + before.player.tileX + ', got ' +
+    after.player.tileX);
+  console.log('PASS — a tap shorter than one step is remembered instead of dropped');
+}
+
+// T starts the clock at 0:00 and shows it; T again stops it and hides it.
+// It only counts while visible, which is what keeps a hidden clock out of
+// the X-ray change log.
+async function checkSpeedrunTimerStartsStopsAndIsNotSaved(page, world) {
+  await resetToStartingTile(page, world);
+  let state = await getState(page);
+  assertTrue(state.runTimer.visible === false,
+    'expected the timer hidden on a fresh load, got ' + JSON.stringify(state.runTimer));
+  const restingSeconds = state.runTimer.secondsElapsed;
+  await page.waitForTimeout(300);
+  state = await getState(page);
+  assertTrue(state.runTimer.secondsElapsed === restingSeconds,
+    'expected a hidden timer not to count, but it moved to ' + state.runTimer.secondsElapsed);
+
+  await tapKey(page, 't');
+  state = await waitForCondition(page, (s) => s.runTimer.visible, 1000, 'T to start the timer');
+  await page.waitForTimeout(400);
+  state = await getState(page);
+  assertTrue(state.runTimer.secondsElapsed > 0.2,
+    'expected the timer to be counting after T, got ' + state.runTimer.secondsElapsed);
+  console.log('PASS — T starts the speedrun clock from zero and it counts while visible');
+
+  const runningSeconds = state.runTimer.secondsElapsed;
+  await tapKey(page, 't');
+  state = await waitForCondition(page, (s) => !s.runTimer.visible, 1000, 'T to stop the timer');
+  await page.waitForTimeout(300);
+  state = await getState(page);
+  assertTrue(state.runTimer.secondsElapsed === runningSeconds ||
+    state.runTimer.secondsElapsed < runningSeconds + 0.05,
+    'expected a hidden timer to stop counting, got ' + state.runTimer.secondsElapsed);
+  console.log('PASS — T again hides the clock and it stops counting');
+
+  // Restarting sets it back to zero, the way a stopwatch does.
+  await tapKey(page, 't');
+  state = await waitForCondition(page, (s) => s.runTimer.visible, 1000, 'T to restart');
+  assertTrue(state.runTimer.secondsElapsed < 0.3,
+    'expected a restarted timer to begin near zero, got ' + state.runTimer.secondsElapsed);
+  await tapKey(page, 't');
+  console.log('PASS — restarting the clock restarts it from 0:00');
+
+  // The timer is a moment, not progress: it must not be in the save.
+  await tapKey(page, 'k');
+  const savedText = await page.evaluate(() => localStorage.getItem(saveSlotName));
+  assertTrue(savedText !== null, 'expected K to write a save');
+  assertTrue(!savedText.includes('runTimer'),
+    'expected runTimer to be left out of the save, but it is in: ' + savedText);
+  console.log('PASS — runTimer is absent from the save, so a reload gives a fresh clock');
+}
+
+async function runPlaytestFixChecks(page, world) {
+  await checkMashingLeftRightFollowsTheNewestKey(page, world);
+  await checkShortTapSurvivesTheStepCooldown(page, world);
+  await checkSpeedrunTimerStartsStopsAndIsNotSaved(page, world);
 }
 
 async function waitForCanvasReady(page) {

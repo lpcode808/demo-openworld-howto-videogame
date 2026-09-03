@@ -120,8 +120,9 @@
 <canvas id="gameCanvas"></canvas>
 <p>
   Arrow keys or WASD to walk. Space to talk and to pick a dialogue choice.
-  K saves, L loads, N starts over. X opens the X-ray. Inside the X-ray, P
-  pauses, . runs one tick, and two buttons copy the moment into a question
+  K saves, L loads, N starts over. T shows a clock, if you want to time a
+  run. X opens the X-ray. Inside the X-ray, P pauses, . runs one tick, and
+  two buttons copy the moment into a question
   for an AI.<br><a href="how.html">How this was made</a> · or open this file.</p>
 </main>
 <!-- The X-ray: a window onto the pipe. Hidden until you press X. Filled in by
@@ -146,13 +147,17 @@
   </section>
   <section>
     <h3>4 · INPUT — intents right now</h3>
-    <p class="hint">What you are asking the game for. Lit means true this instant.</p>
+    <p class="hint">What you are asking the game for. Lit means true this instant.
+      newestMoveDirection is the odd one out: it holds the direction you pressed last
+      until UPDATE takes it, which is usually within one step, so it reads null almost
+      always. Press P to freeze the world, then an arrow, and you can see it waiting.</p>
     <ul id="xrayIntents"></ul>
   </section>
   <section>
     <h3>5 · UPDATE — what changed in state</h3>
-    <p class="hint">Newest first. #n says which update tick did it. Two timers that
-      tick on almost every update, stepCooldown and notice.secondsLeft, are left out.</p>
+    <p class="hint">Newest first. #n says which update tick did it. Three clocks that
+      tick on almost every update — stepCooldown, notice.secondsLeft and
+      runTimer.secondsElapsed — are left out.</p>
     <pre id="xrayChanges"></pre>
   </section>
   <section>
@@ -297,6 +302,11 @@ const layout = {
   // The notice banner at the top.
   noticeWidth: 360,
   noticeHeight: 34,
+  // The speedrun clock, tucked into the top-right corner of the world.
+  timerRightInset: 10,
+  timerTop: 8,
+  timerBoxWidth: 74,
+  timerBoxHeight: 26,
 };
 
 
@@ -608,6 +618,14 @@ const state = {
     text: '',
     secondsLeft: 0,
   },
+
+  // The speedrun clock. `visible` is both whether the HUD draws it and
+  // whether it is running — T does both at once. Not saved: a run belongs
+  // to the sitting you played it in, not to the world.
+  runTimer: {
+    secondsElapsed: 0,
+    visible: false,
+  },
 };
 
 
@@ -618,37 +636,57 @@ const state = {
    to grant it.
    ============================================================ */
 
-// The mailbox between the keyboard and UPDATE. Two kinds of field:
+// The mailbox between the keyboard and UPDATE. Three kinds of field:
 //  - "move*" are true for as long as the key is held down.
 //  - "*Pressed" are true from the moment a key goes down until UPDATE has
 //    read them once. That is how one tap of Space means one action.
+//  - "newestMoveDirection" is the last direction you asked for, kept until
+//    UPDATE is in a position to act on it. Read why under UPDATE.
 const intents = {
   moveUp: false,
   moveDown: false,
   moveLeft: false,
   moveRight: false,
+  // 'up', 'down', 'left', 'right', or null once UPDATE has used it.
+  newestMoveDirection: null,
   interactPressed: false,
   menuUpPressed: false,
   menuDownPressed: false,
   savePressed: false,
   loadPressed: false,
   newGamePressed: false,
+  timerPressed: false,
+};
+
+// Which direction each movement key asks for. Arrows and WASD are the same
+// four directions, so both spellings sit in one table instead of eight ifs.
+const directionForKey = {
+  arrowup: 'up', w: 'up',
+  arrowdown: 'down', s: 'down',
+  arrowleft: 'left', a: 'left',
+  arrowright: 'right', d: 'right',
 };
 
 // Arrow keys and WASD do the same thing. `isDown` is true on keydown and
 // false on keyup, so this one function handles both events.
 function setMovementIntent(key, isDown) {
-  if (key === 'arrowup' || key === 'w') intents.moveUp = isDown;
-  if (key === 'arrowdown' || key === 's') intents.moveDown = isDown;
-  if (key === 'arrowleft' || key === 'a') intents.moveLeft = isDown;
-  if (key === 'arrowright' || key === 'd') intents.moveRight = isDown;
+  const direction = directionForKey[key];
+  if (direction === undefined) return;
+  if (direction === 'up') intents.moveUp = isDown;
+  if (direction === 'down') intents.moveDown = isDown;
+  if (direction === 'left') intents.moveLeft = isDown;
+  if (direction === 'right') intents.moveRight = isDown;
+  // Pressing a direction also makes it the newest one asked for. Letting
+  // go does NOT clear it: a tap can be shorter than one step of walking,
+  // and a direction you asked for should not vanish because you were fast.
+  if (isDown) intents.newestMoveDirection = direction;
 }
 
 // Every key the game listens to, in lower case.
 const keysTheGameUses = [
   'arrowup', 'arrowdown', 'arrowleft', 'arrowright',
   'w', 'a', 's', 'd',
-  ' ', 'k', 'l', 'n',
+  ' ', 'k', 'l', 'n', 't',
 ];
 
 function onKeyDown(event) {
@@ -671,6 +709,7 @@ function onKeyDown(event) {
   if (key === 'k') intents.savePressed = true;
   if (key === 'l') intents.loadPressed = true;
   if (key === 'n') intents.newGamePressed = true;
+  if (key === 't') intents.timerPressed = true;
 }
 
 function onKeyUp(event) {
@@ -679,6 +718,8 @@ function onKeyUp(event) {
 }
 
 // UPDATE calls this at the end of every step so a press counts once.
+// `newestMoveDirection` is deliberately not cleared here: it is cleared by
+// updatePlayerMovement, which only runs when a step is actually possible.
 function clearPressedIntents() {
   intents.interactPressed = false;
   intents.menuUpPressed = false;
@@ -686,6 +727,7 @@ function clearPressedIntents() {
   intents.savePressed = false;
   intents.loadPressed = false;
   intents.newGamePressed = false;
+  intents.timerPressed = false;
 }
 
 
@@ -701,12 +743,16 @@ function clearPressedIntents() {
 // order of everything that can happen in the world.
 function update(stepSeconds) {
   updateNotice(stepSeconds);
+  updateRunTimer(stepSeconds);
   updateSaveKeys();
   if (state.dialogue === null) {
     updatePlayerMovement(stepSeconds);
     updateTalking();
   } else {
-    // While a speech box is open the same keys mean something else.
+    // While a speech box is open the same keys mean something else. The
+    // arrows that moved the menu must not also queue up a step for when
+    // the box closes, so the remembered direction is thrown away here.
+    intents.newestMoveDirection = null;
     updateDialogue();
   }
   clearPressedIntents();
@@ -721,6 +767,27 @@ function showNotice(text) {
 function updateNotice(stepSeconds) {
   if (state.notice.secondsLeft > 0) {
     state.notice.secondsLeft -= stepSeconds;
+  }
+}
+
+// The speedrun clock: T starts it at 0:00, T again stops and hides it. It
+// only counts while it is showing, which is what keeps a hidden clock out
+// of the X-ray's change log — press T and watch that log start to tick.
+// Nothing in the world reads this number, so the game never declares a run
+// over; wiring up a finish line is exercise 10 in CHANGE-ME.md.
+function updateRunTimer(stepSeconds) {
+  if (intents.timerPressed) {
+    state.runTimer.visible = !state.runTimer.visible;
+    if (state.runTimer.visible) {
+      // Starting the clock starts it from zero, the way a stopwatch does.
+      state.runTimer.secondsElapsed = 0;
+      showNotice('Timer started');
+    } else {
+      showNotice('Timer off');
+    }
+  }
+  if (state.runTimer.visible) {
+    state.runTimer.secondsElapsed += stepSeconds;
   }
 }
 
@@ -756,11 +823,20 @@ function updatePlayerMovement(stepSeconds) {
   if (player.stepCooldown > 0) return;
   player.stepCooldown = 0;
 
-  let wantedFacing = null;
-  if (intents.moveUp) wantedFacing = 'up';
-  else if (intents.moveDown) wantedFacing = 'down';
-  else if (intents.moveLeft) wantedFacing = 'left';
-  else if (intents.moveRight) wantedFacing = 'right';
+  // The newest direction you asked for wins, even if that key is already
+  // back up. Without this, mashing left and right would always come out
+  // left: the two keys overlap for a few milliseconds, and the fixed order
+  // below cannot tell which one you pressed second.
+  let wantedFacing = intents.newestMoveDirection;
+  if (wantedFacing === null) {
+    // Nothing new since the last step, so fall back to what is still held.
+    if (intents.moveUp) wantedFacing = 'up';
+    else if (intents.moveDown) wantedFacing = 'down';
+    else if (intents.moveLeft) wantedFacing = 'left';
+    else if (intents.moveRight) wantedFacing = 'right';
+  }
+  // Used or not, that request has now had its turn.
+  intents.newestMoveDirection = null;
   if (wantedFacing === null) return;
 
   // Turn first, so pressing a key toward a wall still faces you at it.
@@ -981,6 +1057,7 @@ function render() {
     drawDialogueBox();
   }
   drawNotice();
+  drawRunTimer();
 }
 
 // The bridge is the one tile whose look depends on state: water until the
@@ -1116,9 +1193,18 @@ function drawHud() {
 
   context.fillStyle = colors.hudDim;
   context.font = fonts.small;
-  const helpText = 'Arrows/WASD move · Space talk · K save · L load · N new game · X x-ray';
+  const helpText = 'Arrows/WASD move · Space talk · K save · L load · N new game'
+    + ' · T timer · X x-ray';
   context.fillText(helpText, textX, top + hudHeightInPixels - lineHeight / 2);
 
+  drawQuestList(top);
+}
+
+// The right-hand column of the HUD: one line per quest, ticked when its
+// flag is set. Its own function because it is its own idea, and because
+// drawHud is the length it is allowed to be.
+function drawQuestList(top) {
+  const lineHeight = layout.hudLineHeight;
   context.font = fonts.hud;
   for (let index = 0; index < quests.length; index++) {
     const quest = quests[index];
@@ -1198,6 +1284,31 @@ function drawNotice() {
   context.fillText(state.notice.text, centreX, boxTop + layout.noticeHeight * 0.7);
 }
 
+// Seconds as m:ss, so 95.4 reads as "1:35". Math.floor, never rounding,
+// because a clock that says 1:36 before the second is over is lying.
+function formatSecondsAsClock(totalSeconds) {
+  const wholeSeconds = Math.floor(totalSeconds);
+  const minutes = Math.floor(wholeSeconds / 60);
+  const seconds = wholeSeconds % 60;
+  // padStart puts the zero back on ':7' so the clock never jumps width.
+  return minutes + ':' + String(seconds).padStart(2, '0');
+}
+
+// The speedrun clock, over the top-right corner of the world. Drawn last
+// so nothing hides it, and only when the player asked for it with T.
+function drawRunTimer() {
+  if (!state.runTimer.visible) return;
+  const boxLeft = canvas.width - layout.timerRightInset - layout.timerBoxWidth;
+  context.fillStyle = colors.dialogueBox;
+  context.fillRect(boxLeft, layout.timerTop, layout.timerBoxWidth, layout.timerBoxHeight);
+  context.font = fonts.hud;
+  context.textAlign = 'center';
+  context.fillStyle = colors.notice;
+  // Text is drawn from its baseline, so nudge it down inside the box.
+  context.fillText(formatSecondsAsClock(state.runTimer.secondsElapsed),
+    boxLeft + layout.timerBoxWidth / 2, layout.timerTop + layout.timerBoxHeight * 0.7);
+}
+
 // THE PROMISE, ENFORCED. LOOP takes a text snapshot of `state` before
 // render() and hands it here afterwards. If drawing changed anything, the
 // two strings differ and the game halts with an error naming the crime.
@@ -1252,8 +1363,9 @@ function frame(nowInMs) {
    in try/catch because storage can be missing or full.
    ============================================================ */
 
-// Only the parts of state worth remembering are saved. The open speech box
-// and the notice are moments, not progress, so they are left out.
+// Only the parts of state worth remembering are saved. The open speech box,
+// the notice and the run timer are moments, not progress, so they are left
+// out — which is why reloading gives you a fresh clock.
 // Returns true on success so UPDATE can show "Saved!".
 function saveGame() {
   const snapshot = {
@@ -1419,9 +1531,13 @@ function xrayStopwatchWhilePaused(unsimulatedSecondsSoFar) {
 // How many change lines the panel remembers. Older ones fall off the end.
 const xrayChangesToKeep = 14;
 
-// These two fields tick on almost every step. Logging them would push every
-// real change off the list within seconds, so the diff skips them.
-const xrayQuietFields = ['player.stepCooldown', 'notice.secondsLeft'];
+// These three fields tick on almost every step. Logging them would push
+// every real change off the list within seconds, so the diff skips them.
+const xrayQuietFields = [
+  'player.stepCooldown',
+  'notice.secondsLeft',
+  'runTimer.secondsElapsed',
+];
 
 // A JSON.stringify replacer that rounds numbers to 2 decimals, so the panel
 // reads "3.14" instead of "3.14159265358979". Everything else passes through.
@@ -1531,7 +1647,7 @@ function showPipe(updatesThisFrame, changesThisFrame, stateMoved) {
   const updateWords = xrayMemory.paused ? 'PAUSED — press . for one step' :
     'updates this frame: ' + updatesThisFrame;
   showPipeRow(3, updatesThisFrame > 0, updateWords);
-  // Most frames UPDATE only ticks the two timers the change log skips. Saying
+  // Most frames UPDATE only ticks the clocks the change log skips. Saying
   // "timers only" there, instead of "no change" under a lit UPDATE row, keeps
   // the diagram from reading as if UPDATE ran and touched nothing at all.
   const changedNow = changesThisFrame.length > 0;
@@ -1539,7 +1655,7 @@ function showPipe(updatesThisFrame, changesThisFrame, stateMoved) {
   let tense = 'no change, last ';
   if (timersOnly) tense = 'timers only, last ';
   if (changedNow) tense = 'this frame: ';
-  let changeWords = timersOnly ? 'only the two timers ticked' : 'nothing has changed yet';
+  let changeWords = timersOnly ? 'only the clocks ticked' : 'nothing has changed yet';
   if (xrayMemory.recentChanges.length > 0) {
     // The log spaces its columns with two spaces; this row has no room for them.
     changeWords = tense + xrayMemory.recentChanges[0].replaceAll('  ', ' ');
@@ -1564,7 +1680,7 @@ function showIntents() {
   for (const key in intents) {
     const item = document.getElementById('xrayIntent_' + key);
     const value = intents[key];
-    item.textContent = key.padEnd(16, ' ') + value;
+    item.textContent = key.padEnd(20, ' ') + value;
     item.className = value ? 'on' : '';
   }
 }
