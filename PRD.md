@@ -338,3 +338,6 @@ Commit after each step. Do not refactor a finished section while building a late
   it after the term ends, or fold it into a longer block for students who stay.
 - **The artifact should be portable.** Single file, no account, no server — a student can take it
   home, which would make it the only piece of the course that travels.
+- **GitHub Pages is extra, not instead.** `game.html` still opens from disk with the network
+  off and still makes zero network requests. The Pages URL is for a classroom that already
+  has a connection. `index.html` is a redirect to `game.html`, not a fifth deliverable.

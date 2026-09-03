@@ -135,3 +135,17 @@ elsewhere. Desktop agents read the newest entry after syncing.
   still deliberately untouched.
 - Routing: → maintainer opens `game.html` in Edge on a managed device, presses X, and clicks
   *copy: explain this frame* to confirm the clipboard works there; then run the student test.
+
+### 2026-09-03-0005 — GitHub Pages already on; root now opens the game — Cursor cloud
+- Pages was already publishing `main` at
+  https://lpcode808.github.io/demo-openworld-howto-videogame/ — the root rendered
+  `README.md` ("download and double-click") and never mentioned `/game.html`, which
+  was already live and playable. That is why it felt like we were not serving it.
+- PR #6 (`cursor/github-pages-play-url-f477`): `index.html` redirects to `game.html`,
+  `.nojekyll` skips Jekyll, README **Open it** leads with
+  [play it on GitHub Pages](https://lpcode808.github.io/demo-openworld-howto-videogame/),
+  PRD §10 says Pages is extra, not instead. `game.html` itself is untouched.
+- Could not set the repo homepage field (`gh repo edit` 403). After merge, the site
+  root should open the game; until then `/game.html` already works.
+- Routing: → merge PR #6, then confirm the live root redirects. Edge-on-a-school-
+  laptop check from the previous entry is still outstanding.
