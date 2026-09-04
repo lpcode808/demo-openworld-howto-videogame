@@ -15,27 +15,27 @@ about the exact frame in front of you rather than describing it from memory.
 ## 1. Change a number in CONFIG
 
 **Do:** Change how many steps per second the player takes while a key is held.
-**Where:** §1 CONFIG, line 224 (`playerStepsPerSecond`)
+**Where:** §1 CONFIG, line 225 (`playerStepsPerSecond`)
 **You should see:** The player visibly speeds up or slows down while walking.
 
 ## 2. Recolor a terrain type
 
 **Do:** Change the hex color for one terrain type, such as grass or water.
-**Where:** §1 CONFIG, lines 210–327
+**Where:** §1 CONFIG, lines 211–331
 **You should see:** Every tile of that terrain type, on all three maps, changes color.
 
 ## 3. Widen the map by typing
 
 **Do:** Insert one more `.` just before the final `T` of every overworld row, so all thirty rows
 stay the same length and the tree border stays on the edge.
-**Where:** §2 DATA, lines 328–696
+**Where:** §2 DATA, lines 332–700
 **You should see:** The map is wider, and the camera slides further right before it stops.
 
 ## 4. Add a fifth item
 
 **Do:** The game already has four items. Add a fifth, copying the shape of an existing one, with
 a tile position that isn't a wall or a tree.
-**Where:** §2 DATA, lines 494–504 (`items`)
+**Where:** §2 DATA, lines 498–508 (`items`)
 **You should see:** A new colored square on the ground, and its name in the Bag line once you
 walk over it.
 
@@ -43,7 +43,7 @@ walk over it.
 
 **Do:** Add a new entry to the NPC table, copying the shape of Mira, Bram, or Oswin, with its own
 name, position, and dialogue tree.
-**Where:** §2 DATA, lines 529–679 (`npcs`)
+**Where:** §2 DATA, lines 533–683 (`npcs`)
 **You should see:** A new colored square with a name floating above it, and a speech box when
 you face it and press Space.
 
@@ -52,18 +52,18 @@ you face it and press Space.
 **Do:** Make one NPC wander instead of standing still. Its position lives in the NPC table in
 DATA, which is `const` and never changes — think about which section is allowed to change a
 value over time, and where a value that changes over time is supposed to live.
-**Where:** §2 DATA, lines 529–679 (`npcs`)
-**Where:** §3 STATE, lines 712–758 (`state`)
-**Where:** §5 UPDATE, lines 873–888 (`update`)
+**Where:** §2 DATA, lines 533–683 (`npcs`)
+**Where:** §3 STATE, lines 716–762 (`state`)
+**Where:** §5 UPDATE, lines 877–892 (`update`)
 **You should see:** The NPC's square moves around the map on its own instead of staying put.
 
 ## 7. Add a terrain type with new walkability
 
 **Do:** Pick a new letter, give it a color and a walkable value, then type that letter into a
 map row.
-**Where:** §1 CONFIG, lines 254–278 (`colors`)
-**Where:** §2 DATA, lines 346–359 (`tileTypes`)
-**Where:** §2 DATA, lines 375–438 (`maps.overworld.rows`)
+**Where:** §1 CONFIG, lines 255–279 (`colors`)
+**Where:** §2 DATA, lines 350–363 (`tileTypes`)
+**Where:** §2 DATA, lines 379–442 (`maps.overworld.rows`)
 **You should see:** A new colored tile where you typed the letter, either blocking your walk or
 letting you through, depending on the walkable value you picked.
 **Then go further:** every tile in that table says two things about itself — `walkable` and
@@ -75,9 +75,9 @@ where UPDATE reads it (`stepCooldownFor`) and you have the whole pattern.
 
 **Do:** Copy the shape of the house map to make a new interior, then add a matching pair of
 doors linking a tile in the overworld to a tile in the new interior, and back.
-**Where:** §2 DATA, lines 372–460 (`maps`)
-**Where:** §2 DATA, lines 375–438 (`maps.overworld.rows`)
-**Where:** §2 DATA, lines 463–483 (`doors`)
+**Where:** §2 DATA, lines 376–464 (`maps`)
+**Where:** §2 DATA, lines 379–442 (`maps.overworld.rows`)
+**Where:** §2 DATA, lines 467–487 (`doors`)
 **You should see:** Stepping on the new door tile takes you into the new interior, and stepping
 on its exit tile brings you back to the same spot outside.
 
@@ -86,11 +86,11 @@ on its exit tile brings you back to the same spot outside.
 **Do:** Every quest in the game so far takes items off you. Make one that gives an item *to* the
 player — an NPC who, once their flag is set, puts a new item in your bag. Then make a later quest
 want that item, so finishing one quest is what makes the next one possible.
-**Where:** §2 DATA, lines 511–516 (`quests`)
-**Where:** §2 DATA, lines 529–679 (`npcs`)
-**Where:** §5 UPDATE, lines 1054–1069 (`updateTalking`)
-**Where:** §5 UPDATE, lines 1073–1110 (`updateDialogue`)
-**Where:** §5 UPDATE, lines 1106–1119 (`giveItemsToNpc`)
+**Where:** §2 DATA, lines 515–520 (`quests`)
+**Where:** §2 DATA, lines 533–683 (`npcs`)
+**Where:** §5 UPDATE, lines 1058–1073 (`updateTalking`)
+**Where:** §5 UPDATE, lines 1077–1114 (`updateDialogue`)
+**Where:** §5 UPDATE, lines 1110–1123 (`giveItemsToNpc`)
 **You should see:** A chain — quest A can't be started until quest B is finished, because the
 thing A wants only exists after B.
 **Read first:** Nessa wants three things at once, which is the worked example for "a want is a
@@ -105,10 +105,10 @@ which, and say why in a comment.
 **Do:** Finishing the three village quests opens the forest gate — read how that works, then do
 the same for the *fourth* quest. Nothing at all happens when Nessa's feast basket is filled.
 Make something happen.
-**Where:** §3 STATE, lines 734–739 (`state.flags`)
-**Where:** §2 DATA, lines 511–516 (`quests`)
-**Where:** §5 UPDATE, lines 873–888 (`update`)
-**Where:** §7 RENDER, lines 1366–1395 (`drawHud`) and lines 1400–1414 (`drawQuestList`)
+**Where:** §3 STATE, lines 738–743 (`state.flags`)
+**Where:** §2 DATA, lines 515–520 (`quests`)
+**Where:** §5 UPDATE, lines 877–892 (`update`)
+**Where:** §7 RENDER, lines 1376–1405 (`drawHud`) and lines 1410–1424 (`drawQuestList`)
 **You should see:** Something new — a message, a colour change, a new tile, a fourth map — once
 the fourth `[x]` appears.
 **Read first:** the gate is the worked example, and it is only three pieces. `villageQuestFlags`
@@ -142,7 +142,7 @@ for. Read it, then go past it.
 one clipped and formal, one that rambles, one that writes in leetspeak (`h3ll0 tr4v3l3r`), one
 that only speaks in symbols. It is the same trick as the map: dialogue is just text sitting in a
 table, so you change a character by typing.
-**Where:** §2 DATA, lines 529–679 (`npcs`) — the `lines:` arrays inside each `dialogue:` block
+**Where:** §2 DATA, lines 533–683 (`npcs`) — the `lines:` arrays inside each `dialogue:` block
 **You should see:** Four people who sound like four people. Watch the speech box width: a line
 much longer than the ones already there will run off the edge, because `drawDialogueBox` sizes
 the box by counting lines, not by measuring letters.
@@ -155,8 +155,8 @@ across two sections. There isn't a single right answer — decide, and write dow
 **Do:** The Old Forest was this student's idea and it is in the game now. Do the next one
 yourself: a fourth map, reached from inside the forest rather than from the village, gated on
 Nessa's flag so it only opens once level two is finished. Up a mountain, or down a mineshaft.
-**Where:** §2 DATA, lines 372–460 (`maps`), lines 463–483 (`doors`), lines 494–504 (`items`),
-lines 511–516 (`quests`), lines 529–679 (`npcs`); §6 COLLIDE for the new gate; §1 CONFIG for
+**Where:** §2 DATA, lines 376–464 (`maps`), lines 467–487 (`doors`), lines 498–508 (`items`),
+lines 515–520 (`quests`), lines 533–683 (`npcs`); §6 COLLIDE for the new gate; §1 CONFIG for
 `hudHeightInPixels` if a fifth quest leaves the HUD no room.
 **You should see:** A new place on the HUD's "Place:" line, and a quest that can't be started
 until the feast is done.

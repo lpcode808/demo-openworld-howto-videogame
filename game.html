@@ -30,14 +30,14 @@
   }
   p {
     max-width: 640px;
-    font-size: 13px;
-    color: #888;
+    font-size: 15px;
+    color: #c8c8d0;
   }
   p a { color: #ffd75e; }
   /* The X-ray panel. Its own small stylesheet so it is obvious, just from
      reading this file top to bottom, that deleting it costs nothing else. */
   aside#xray {
-    width: 420px;
+    width: 500px;
     box-sizing: border-box;
     /* Taller than most laptop screens once it is full, so the panel scrolls
        itself. Scrolling the whole page instead would slide the game off. */
@@ -48,16 +48,16 @@
     background: #15151f;
     color: #ddd;
     font-family: monospace;
-    font-size: 12px;
+    font-size: 14px;
   }
   aside#xray h2 {
     margin: 0 0 8px 0;
-    font-size: 13px;
+    font-size: 15px;
     color: #ffd75e;
   }
   aside#xray h3 {
     margin: 10px 0 4px 0;
-    font-size: 12px;
+    font-size: 14px;
     color: #eee;
   }
   aside#xray ul, aside#xray pre {
@@ -65,16 +65,17 @@
     padding: 0;
     list-style: none;
     white-space: pre-wrap;
-    max-height: 160px;
+    max-height: 220px;
     overflow-y: auto;
   }
   /* The whole of `state` is short enough to show at once; that is the point. */
   aside#xray pre#xrayState {
-    max-height: 300px;
+    max-height: 340px;
   }
-  /* A true intent (a key held, a press just seen) is bright; the rest dim. */
+  /* A true intent (a key held, a press just seen) is gold; the rest are a
+     grey chosen to still read from the back row (8.9:1 on this background). */
   aside#xray li {
-    color: #8a8a99;
+    color: #b4b4c4;
   }
   aside#xray li.on {
     color: #ffd75e;
@@ -91,8 +92,8 @@
   aside#xray p.hint {
     margin: 0 0 4px 0;
     max-width: none;
-    font-size: 11px;
-    color: #7a7a88;
+    font-size: 13px;
+    color: #b4b4c4;
   }
   aside#xray button {
     margin: 2px 4px 4px 0;
@@ -101,17 +102,17 @@
     color: #ffd75e;
     border: 1px solid #44445c;
     font-family: monospace;
-    font-size: 11px;
+    font-size: 13px;
     cursor: pointer;
   }
   aside#xray textarea {
     width: 100%;
     box-sizing: border-box;
     background: #0e0e16;
-    color: #8a8a99;
+    color: #b4b4c4;
     border: 1px solid #2a2a3a;
     font-family: monospace;
-    font-size: 10px;
+    font-size: 12px;
   }
 </style>
 </head>
@@ -270,7 +271,7 @@ const colors = {
   playerEye: '#222222',
   hudBackground: '#15151f',
   hudText: '#eeeeee',
-  hudDim: '#8a8a99',
+  hudDim: '#b4b4c4',
   questDone: '#7be07b',
   notice: '#ffd75e',
   dialogueBox: 'rgba(10, 10, 20, 0.92)',
@@ -282,8 +283,8 @@ const colors = {
 
 const fonts = {
   hud: '15px monospace',
-  small: '11px monospace',
-  dialogue: '16px monospace',
+  small: '13px monospace',
+  dialogue: '17px monospace',
   notice: 'bold 18px monospace',
 };
 
@@ -292,6 +293,9 @@ const fonts = {
 const layout = {
   // People and the player are squares slightly smaller than their tile.
   entityInset: 4,
+  // The dark strip behind a person's name, and the room around the letters.
+  nameStripHeight: 16,
+  nameStripPadding: 4,
   // Items are smaller still, so they look like something lying on the ground.
   itemInset: 9,
   // The player's "eye": how big, and how far from the centre toward the facing.
@@ -656,9 +660,9 @@ const npcs = [
                   { label: 'Another time.', next: null }],
       },
       more: {
-        lines: ['A wild mushroom, a honeycomb and a handful of sweet berries.',
+        lines: ['A wild mushroom, a honeycomb, a handful of sweet berries.',
                 'The forest gate has been grown shut for years, mind.',
-                'It opens when the village is whole again — so go help the others.'],
+                'It opens once the village is whole. Go help the others.'],
         choices: [],
       },
       offer: {
@@ -1324,7 +1328,8 @@ function drawItems(camera) {
   }
 }
 
-// NPCs are colored squares with their name floating above.
+// NPCs are colored squares with their name floating above, on a dark strip:
+// white letters straight on grass or a path were too faint to read.
 function drawNpcs(camera) {
   for (const npc of npcs) {
     if (npc.map !== state.currentMap) continue;
@@ -1334,10 +1339,15 @@ function drawNpcs(camera) {
     context.fillStyle = npc.color;
     context.fillRect(pixelX + inset, pixelY + inset, tileSizeInPixels - inset * 2,
       tileSizeInPixels - inset * 2);
-    context.fillStyle = colors.hudText;
     context.font = fonts.small;
     context.textAlign = 'center';
-    context.fillText(npc.name, pixelX + tileSizeInPixels / 2, pixelY - layout.entityInset);
+    const centreX = pixelX + tileSizeInPixels / 2;
+    const stripWidth = context.measureText(npc.name).width + layout.nameStripPadding * 2;
+    context.fillStyle = colors.dialogueBox;
+    context.fillRect(centreX - stripWidth / 2, pixelY - layout.nameStripHeight, stripWidth,
+      layout.nameStripHeight);
+    context.fillStyle = colors.hudText;
+    context.fillText(npc.name, centreX, pixelY - layout.entityInset);
   }
 }
 
@@ -1387,8 +1397,8 @@ function drawHud() {
 
   context.fillStyle = colors.hudDim;
   context.font = fonts.small;
-  const helpText = 'Arrows/WASD move · Space talk · K save · L load · N new game'
-    + ' · T timer · X x-ray';
+  const helpText = 'Arrows/WASD move · Space talk · K save · L load · N restart'
+    + ' · X x-ray';
   context.fillText(helpText, textX, top + hudHeightInPixels - lineHeight / 2);
 
   drawQuestList(top);

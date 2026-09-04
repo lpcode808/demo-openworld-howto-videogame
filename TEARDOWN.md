@@ -81,7 +81,7 @@ remember nothing else, remember that arrow.
 **What you're looking for:** the single function the browser calls over and over, and the
 handful of lines that kick it off.
 
-**Where it lives:** §10 BOOT, lines 1614–1676, then §8 LOOP, lines 1518–1552. Read them in that
+**Where it lives:** §10 BOOT, lines 1624–1686, then §8 LOOP, lines 1528–1562. Read them in that
 order, because that is the order the computer does.
 
 Start at the bottom of the file. BOOT is not a function; it is a short list of statements that
@@ -90,7 +90,7 @@ canvas gets its size (1663–1664), the keyboard gets listened to (1666–1667),
 (1669–1672), and then one line — 1674 — asks the browser to call `frame` when it is next ready to
 draw.
 
-Now go to `frame`, lines 1529–1550. Twenty-two lines. Read each
+Now go to `frame`, lines 1539–1560. Twenty-two lines. Read each
 one and say in words what it does. The last line asks the browser to call `frame` again. That is
 the whole heartbeat: BOOT calls `frame` once, and `frame` calls itself forever, about sixty
 times a second.
@@ -98,7 +98,7 @@ times a second.
 **Question 1:** Inside `frame` there is a `while` loop around `update`. Why a loop, and not just
 calling `update` once per frame?
 
-**Break it on purpose:** delete line 1549 (`requestAnimationFrame(frame);` inside `frame`).
+**Break it on purpose:** delete line 1559 (`requestAnimationFrame(frame);` inside `frame`).
 Save, reload. You should see the world drawn once, correctly — and then nothing. Arrow keys do
 nothing. The heart beat exactly once. Put the line back.
 
@@ -108,20 +108,20 @@ nothing. The heart beat exactly once. Put the line back.
 
 **What you're looking for:** the map. It is not a picture. It is text you could type.
 
-**Where it lives:** §2 DATA, lines 328–696. The maps themselves are lines 372–460; the
-overworld's rows are lines 375–438.
+**Where it lives:** §2 DATA, lines 332–700. The maps themselves are lines 376–464; the
+overworld's rows are lines 379–442.
 
-Look at line 390. It is row 14 of the overworld: a line of `=` (path) running from the left,
+Look at line 394. It is row 14 of the overworld: a line of `=` (path) running from the left,
 across `BB` in the middle, and on to the right. Now look at the game: the path you start on.
 Same thing. Every character in that string is one 32-pixel square on screen. Count the `~`
 columns on either side of the `BB` — that is the river.
 
-Now find `tileTypes`, lines 346–359. This table is the legend: what each character means, what
+Now find `tileTypes`, lines 350–363. This table is the legend: what each character means, what
 colour it is, and whether you can stand on it. Notice the map rows and the legend are both plain
 data. Nothing in DATA *does* anything; the rest of the file reads it.
 
-Look further down. `items` (494–504), `quests` (511–516), and `npcs` (529–679) are also just
-tables. Read Mira's dialogue, lines 539–564 (the `dialogue: {` block). It is a set of named
+Look further down. `items` (498–508), `quests` (515–520), and `npcs` (533–683) are also just
+tables. Read Mira's dialogue, lines 543–568 (the `dialogue: {` block). It is a set of named
 nodes; each choice names the next node to jump to, or `null` to stop. That is a dialogue tree
 written as data.
 
@@ -135,7 +135,7 @@ walk on; the legend just says `slow: true`, and UPDATE is what acts on it.
 **Question 2:** Row 14 has `BB` where the path crosses the river. The legend says `'B'` is
 *not* walkable. So how do you ever cross? (Hint: search the file for `'B'`.)
 
-**Break it on purpose:** on line 390, change `BB` to `==`. Save, reload, press N. Walk east
+**Break it on purpose:** on line 394, change `BB` to `==`. Save, reload, press N. Walk east
 along the path. You should cross the river before Bram has done anything; his quest now gates
 nothing. Change it back.
 
@@ -145,7 +145,7 @@ nothing. Change it back.
 
 **What you're looking for:** the one object that holds everything the game knows.
 
-**Where it lives:** §3 STATE, lines 697–760. The object itself is `state`, lines 712–758.
+**Where it lives:** §3 STATE, lines 701–764. The object itself is `state`, lines 716–762.
 
 Read `state` field by field. Where you are (`currentMap`, `player`). What you carry
 (`inventory`). What you have done (`flags`). Whether someone is talking (`dialogue`). A message
@@ -155,7 +155,7 @@ Now prove it to yourself. Pick any fact about the game — say, "which quests ar
 search the file for where it is stored. You will land on `state.flags`. Try another: "which item
 is still lying on the ground?" You land on `state.pickedUpItems`. There is no second place.
 
-Three things outside `state` do change while the game runs, and the comment at lines 704–711
+Three things outside `state` do change while the game runs, and the comment at lines 708–715
 names them: `intents` (§4), the loop's stopwatch (§8), and `xrayMemory` in the optional §11
 X-RAY. None is a fact about the world: one is a mailbox from the keyboard, one is a clock, and
 one is the x-ray panel's own scratch paper.
@@ -163,7 +163,7 @@ one is the x-ray panel's own scratch paper.
 **Question 3:** `state` has both `inventory` and `pickedUpItems`. They sound like the same
 thing. Why are there two? (Hint: what happens to the herb when you give it to Mira?)
 
-**Break it on purpose:** on lines 717–718, change `tileX: 3,` / `tileY: 14,` to `tileX: 33,`
+**Break it on purpose:** on lines 721–722, change `tileX: 3,` / `tileY: 14,` to `tileX: 33,`
 / `tileY: 14,`. Save, reload, and press **N** (a saved game would put you back where you saved).
 You should start on the east bank of the river, next to the house, with the bridge behind you.
 Change it back.
@@ -174,9 +174,9 @@ Change it back.
 
 **What you're looking for:** the full chain from finger to pixel, in order.
 
-**Where it lives:** §4 INPUT, lines 761–862, then §5 UPDATE, lines 863–1121. In particular
-`onKeyDown` (821–842), `intents` (774–788), `update` (873–888) and `updatePlayerMovement`
-(818–852).
+**Where it lives:** §4 INPUT, lines 765–866, then §5 UPDATE, lines 867–1125. In particular
+`onKeyDown` (825–846), `intents` (778–792), `update` (877–892) and `updatePlayerMovement`
+(953–987).
 
 Start in INPUT. When you press a key, the browser calls `onKeyDown`. Read it. It does not move
 anything. It sets a field of `intents` to `true` — for the right arrow, `intents.moveRight`. That
@@ -190,7 +190,7 @@ two keys are down at the same time — which happens for a few milliseconds ever
 the earlier `if` always wins. A list of which keys are down cannot say which one you pressed
 *second*, so INPUT now writes that down too.
 
-Now the other end. `update` (873) runs sixty times a second from `frame`. It calls
+Now the other end. `update` (877) runs sixty times a second from `frame`. It calls
 `updatePlayerMovement`. Read that function slowly. It reads `intents.moveRight`, works out the
 target tile, asks COLLIDE whether it is allowed, and only then changes `state.player.tileX`.
 
@@ -246,7 +246,7 @@ and you can watch that single write happen on its own.
 **Question 4:** Hold the right arrow. List, in order, every function that runs between the key
 going down and `state.player.tileX` changing. There are six or seven.
 
-**Break it on purpose:** on line 795 (`arrowleft: 'left'`), change `'left'` to `'right'`. Save,
+**Break it on purpose:** on line 799 (`arrowleft: 'left'`), change `'left'` to `'right'`. Save,
 reload. The left arrow should now walk you right. Nothing in UPDATE changed — you only changed
 what the key *asks for*. Change it back.
 
@@ -256,8 +256,8 @@ what the key *asks for*. Change it back.
 
 **What you're looking for:** the one function that says yes or no to a step.
 
-**Where it lives:** §6 COLLIDE, lines 1122–1180. `canWalkTo` is lines 1159–1178; `tileAt` is
-lines 1131–1136.
+**Where it lives:** §6 COLLIDE, lines 1126–1184. `canWalkTo` is lines 1163–1182; `tileAt` is
+lines 1135–1140.
 
 This section is deliberately small so you can read it in one go. `tileAt` answers "which
 character is at this spot on this map?", and treats anywhere off the edge as a wall. `canWalkTo`
@@ -275,14 +275,14 @@ much of `state` as you like, and the tile itself never knows. This is also why l
 at all: the whole of "you have finished the village, here is somewhere new" is one `if` in this
 section plus one `G` typed into row 0 of the overworld.
 
-Now look at `findDoorAt` (1139–1146) and where it is used, `goThroughDoorUnderPlayer` (987–995).
+Now look at `findDoorAt` (1143–1150) and where it is used, `goThroughDoorUnderPlayer` (991–999).
 Changing area is nothing more than changing three fields of `state`. RENDER draws whatever map
 `state.currentMap` names; it never knows you moved.
 
 **Question 5:** The house is drawn with `#` for walls and `D` for the door. You can step on the
 `D` but not the `#` beside it. Which exact line makes that difference?
 
-**Break it on purpose:** on line 349 (the `'T'` row of `tileTypes`), change `walkable: false`
+**Break it on purpose:** on line 353 (the `'T'` row of `tileTypes`), change `walkable: false`
 to `walkable: true`. Save, reload. You should be able to walk straight through every tree,
 including into the herb grove from any side. You still can't leave the map — find the line in
 `tileAt` that guarantees that. Change it back.
@@ -294,7 +294,7 @@ including into the herb grove from any side. You still can't leave the map — f
 **What you're looking for:** proof that RENDER only reads. This is the most important idea in
 the file.
 
-**Where it lives:** §7 RENDER, lines 1181–1517, and three lines of §8 LOOP, lines 1545–1547.
+**Where it lives:** §7 RENDER, lines 1185–1527, and three lines of §8 LOOP, lines 1555–1557.
 
 Scroll through RENDER. Every function is called `draw`-something or `compute`-something. Pick
 any one and read it. It reads `state`, it reads the tables in DATA, and it calls `context.fill…`.
@@ -306,25 +306,25 @@ Why does that matter? Because it means you can understand the game in two halves
 player is, and a bug in the rules can never be hidden by the drawing.
 
 Now look at how the file enforces it. Line 1240 turns `state` into a string before drawing. Line
-1242 calls `assertRenderChangedNothing` (1509–1515), which turns `state` into a string again and
+1242 calls `assertRenderChangedNothing` (1519–1525), which turns `state` into a string again and
 compares. If they differ, the game throws an error and stops. It is a promise with an alarm on it.
 
 The x-ray is built on that same pair of strings. Line 1233 takes a snapshot before UPDATE runs;
-line 1545 takes the one the purity check uses. Two snapshots, two comparisons:
+line 1555 takes the one the purity check uses. Two snapshots, two comparisons:
 
 ```
   one turn of the loop
   ─────────────────────────────────────────────────────────────────────
 
-  snapshot A  =  JSON.stringify(state)            line 1538
+  snapshot A  =  JSON.stringify(state)            line 1548
       │
       │   UPDATE runs — none, one, or several times
       ▼
-  snapshot B  =  JSON.stringify(state)            line 1545
+  snapshot B  =  JSON.stringify(state)            line 1555
       │
       │   RENDER runs
       ▼
-  compare state against snapshot B                line 1547
+  compare state against snapshot B                line 1557
       │
       ├── the same?    good. drawing changed nothing. carry on.
       └── different?   throw. the game stops on the spot.
@@ -337,13 +337,13 @@ line 1545 takes the one the purity check uses. Two snapshots, two comparisons:
 Look at what that costs. Nothing inside UPDATE is instrumented — no logging, no hooks, no
 special cases. The same two strings that prove RENDER is honest are also the complete record of
 what the rules did. If you wanted to know what changed, you would have had to take those
-snapshots anyway. That is spelled out in `§11 X-RAY, lines 1677–2118`.
+snapshots anyway. That is spelled out in `§11 X-RAY, lines 1687–2128`.
 
 **Question 6:** Find the line in RENDER that decides whether the bridge is drawn as water or as
 planks. Does that line *change* anything? If not, which line, in which section, made the bridge
 change?
 
-**Break it on purpose:** inside `drawNotice`, after line 1471, add a new line
+**Break it on purpose:** inside `drawNotice`, after line 1481, add a new line
 `state.notice.text = 'oops';`. Save, reload. Press F12 to open the console. Walk onto the herb
 so a notice appears. You should see the game freeze and the console read
 `RENDER changed state! Drawing must only read.` Delete the line you added.
@@ -357,26 +357,26 @@ late. Each frame adds the real time that passed to `unsimulatedSeconds`, then ru
 fixed 1/60 s slices as many times as fit, keeping the remainder for next frame. The game
 therefore advances by the same rules on every machine; only how often it is *drawn* varies.
 
-**2.** `canWalkTo` (line 1171) checks for `'B'` before looking at the legend and returns
-`state.flags.bridgeBuilt` instead. That flag is set to `true` in `giveItemToNpc` (line 1106) when
-you hand Bram the plank. `tileColorFor` (1242–1250) reads the same flag to draw planks instead
+**2.** `canWalkTo` (line 1175) checks for `'B'` before looking at the legend and returns
+`state.flags.bridgeBuilt` instead. That flag is set to `true` in `giveItemToNpc` (line 1110) when
+you hand Bram the plank. `tileColorFor` (1246–1254) reads the same flag to draw planks instead
 of water.
 
 **3.** `inventory` is what you are carrying right now. `pickedUpItems` is everything you have
 *ever* picked up. When you give Mira the herb it leaves `inventory` but stays in `pickedUpItems`,
-and both `drawItems` (line 1314) and `pickUpItemUnderPlayer` (line 998) check `pickedUpItems`, so
+and both `drawItems` (line 1318) and `pickUpItemUnderPlayer` (line 1002) check `pickedUpItems`, so
 the herb does not reappear on the ground.
 
-**4.** `onKeyDown` (821) → `setMovementIntent` (801) sets `intents.moveRight`. Then on the next
-frame: `frame` (1529) → `update` (873) → `updatePlayerMovement` (949) → `canWalkTo` (1159) →
-`findNpcAt` (1149) and `tileAt` (1131) → back in `updatePlayerMovement`, line 978 assigns
+**4.** `onKeyDown` (825) → `setMovementIntent` (805) sets `intents.moveRight`. Then on the next
+frame: `frame` (1539) → `update` (877) → `updatePlayerMovement` (953) → `canWalkTo` (1163) →
+`findNpcAt` (1153) and `tileAt` (1135) → back in `updatePlayerMovement`, line 982 assigns
 `player.tileX = targetX`.
 
-**5.** Line 927, `return tileTypes[tileCharacter].walkable;`, combined with the legend: line 352
-says `'D'` is `walkable: true` and line 353 says `'#'` is `walkable: false`. Walls and doors are
+**5.** Line 927, `return tileTypes[tileCharacter].walkable;`, combined with the legend: line 356
+says `'D'` is `walkable: true` and line 357 says `'#'` is `walkable: false`. Walls and doors are
 just different letters in the map string; the legend is what gives them meaning.
 
-**6.** `tileColorFor`, line 1243 (`if (tileCharacter === 'B' && state.flags.bridgeBuilt)`). It
+**6.** `tileColorFor`, line 1247 (`if (tileCharacter === 'B' && state.flags.bridgeBuilt)`). It
 changes nothing; it returns a colour. The bridge "changed" when `giveItemToNpc` in §5 UPDATE
-(line 1106) set `state.flags.bridgeBuilt = true`. RENDER noticed on the next frame because it
+(line 1110) set `state.flags.bridgeBuilt = true`. RENDER noticed on the next frame because it
 reads that flag every time it draws.
