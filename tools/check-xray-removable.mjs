@@ -12,9 +12,9 @@
 // Maintainer tool, not a student deliverable (see tools/README.md). Prints
 // one PASS/FAIL line per check and exits 1 if any check fails.
 //
-// Usage: PLAYWRIGHT_BROWSERS_PATH=/opt/pw-browsers node tools/check-xray-removable.mjs
+// Usage: node tools/check-xray-removable.mjs
 
-import { chromium } from '/opt/node22/lib/node_modules/playwright/index.mjs';
+import { chromium } from 'playwright';
 import { readFileSync, writeFileSync, mkdtempSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import os from 'node:os';

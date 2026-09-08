@@ -6,9 +6,9 @@
 // and open, the third map, the bog's cost, and the three-item feast quest.
 //
 // Maintainer tool, not a student deliverable (see tools/README.md).
-// Usage: PLAYWRIGHT_BROWSERS_PATH=/opt/pw-browsers node tools/playthrough.mjs
+// Usage: node tools/playthrough.mjs
 
-import { chromium } from '/opt/node22/lib/node_modules/playwright/index.mjs';
+import { chromium } from 'playwright';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 
@@ -386,21 +386,39 @@ function findDoor(world, fromMap, toMap) {
 
 // A malformed or old save must be refused whole, before it changes anything:
 // SAVE's saveLooksComplete checks the shape before loadGame touches state.
-// Proves that for three kinds of bad save: an unknown map, a missing
-// `player`, and a valid-shaped save naming an item that does not exist.
+// Exercise corrupted shapes and values through both L and startup loading.
 async function checkBadSaveIsRefused(page, world) {
+  const valid = {
+    currentMap: 'overworld', player: { tileX: 3, tileY: 14, facing: 'right' },
+    inventory: [], pickedUpItems: {}, flags: {},
+  };
   const badSaves = [
-    { currentMap: 'nowhere', player: { tileX: 3, tileY: 14, facing: 'right' },
-      inventory: [], pickedUpItems: [], flags: {} },
-    { currentMap: 'overworld', inventory: [], pickedUpItems: [], flags: {} },
-    { currentMap: 'overworld', player: { tileX: 3, tileY: 14, facing: 'right' },
-      inventory: ['not-a-real-item'], pickedUpItems: [], flags: {} },
+    null,
+    { ...valid, currentMap: 'nowhere' },
+    { ...valid, currentMap: 'constructor' },
+    { ...valid, player: undefined },
+    { ...valid, player: {} },
+    { ...valid, player: { ...valid.player, facing: 'constructor' } },
+    { ...valid, player: { ...valid.player, tileX: '3' } },
+    { ...valid, player: { ...valid.player, tileX: 0.5 } },
+    { ...valid, player: { ...valid.player, tileY: -1 } },
+    { ...valid, player: { ...valid.player, tileX: 40 } },
+    { ...valid, inventory: ['not-a-real-item'] },
+    { ...valid, pickedUpItems: [] },
+    { ...valid, pickedUpItems: { herb: 'false' } },
+    { ...valid, flags: [] },
+    { ...valid, flags: { bridgeBuilt: 'false' } },
   ];
 
   for (const badSave of badSaves) {
     const issuesBefore = consoleIssues.length;
     await page.evaluate((args) => localStorage.setItem(args.slot, args.text),
       { slot: world.saveSlotName, text: JSON.stringify(badSave) });
+    const unchanged = await page.evaluate(() => {
+      const before = JSON.stringify(state);
+      return !loadGame() && JSON.stringify(state) === before;
+    });
+    assertTrue(unchanged, 'malformed save must be rejected before any state changes');
     await page.reload();
     await waitForCanvasReady(page);
     await page.waitForTimeout(500);
@@ -421,9 +439,41 @@ async function checkBadSaveIsRefused(page, world) {
       'expected no console/page errors loading ' + JSON.stringify(badSave) + ', got ' +
       JSON.stringify(consoleIssues.slice(issuesBefore)));
   }
+  const legacyLoaded = await page.evaluate((legacy) => {
+    localStorage.setItem(saveSlotName, JSON.stringify(legacy));
+    return loadGame() && state.flags.feastHeld === false && saveGame() && loadGame();
+  }, valid);
+  assertTrue(legacyLoaded, 'legacy saves with missing flags still load, save and load again');
   await page.evaluate((slot) => localStorage.removeItem(slot), world.saveSlotName);
-  console.log('PASS — an unknown map, a missing player, and an unknown item id in inventory ' +
-    'were all refused without freezing or crashing the game');
+  console.log('PASS — 15 malformed saves refused without state changes or crashes; ' +
+    'legacy missing flags still round-trip');
+}
+
+async function checkInputFocusBoundaries(page) {
+  const result = await page.evaluate(() => {
+    document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+    document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', bubbles: true }));
+    window.dispatchEvent(new Event('blur'));
+    const cleared = Object.entries(intents).every(([name, value]) =>
+      value === (name === 'newestMoveDirection' ? null : false));
+    const before = JSON.stringify(state);
+    update(fixedStepInSeconds);
+    const still = JSON.stringify(state) === before;
+    const textarea = document.getElementById('xrayAskText');
+    textarea.dispatchEvent(new KeyboardEvent('keydown', { key: 'n', bubbles: true }));
+    textarea.dispatchEvent(new KeyboardEvent('keydown', { key: 'x', bubbles: true }));
+    const noTextActions = !intents.newGamePressed && xrayPanel.hidden;
+    document.body.dispatchEvent(new KeyboardEvent('keydown', {
+      key: 's', ctrlKey: true, bubbles: true,
+    }));
+    document.body.dispatchEvent(new KeyboardEvent('keydown', {
+      key: 'x', metaKey: true, bubbles: true,
+    }));
+    return { cleared, still, noTextActions, noShortcuts: !intents.moveDown && xrayPanel.hidden };
+  });
+  assertTrue(Object.values(result).every(Boolean), 'input focus boundaries: ' + JSON.stringify(result));
+  console.log('PASS — losing focus clears held and pending input; text controls and browser ' +
+    'shortcuts do not trigger game or X-ray actions');
 }
 
 // Held-key regression: a direction key still held from steering the
@@ -452,6 +502,8 @@ async function checkHeldMenuKeyDoesNotWalkAfterDialogue(page, world) {
     'dialogue to close after picking "I\'ll be back."');
 
   const before = await getState(page);
+  // A second keydown for a held key models the browser's auto-repeat.
+  await page.keyboard.down('ArrowDown');
   await page.waitForTimeout(400); // ArrowDown is still held from steering the menu
   const after = await getState(page);
   await page.keyboard.up('ArrowDown');
@@ -492,6 +544,7 @@ async function runPlaythrough(page) {
   const world = await getWorld(page);
 
   await checkBadSaveIsRefused(page, world);
+  await checkInputFocusBoundaries(page);
   await checkFreshLoadBasics(page);
   await checkForestGateIsShutOnAFreshLoad(page, world);
   await checkHeldMenuKeyDoesNotWalkAfterDialogue(page, world);

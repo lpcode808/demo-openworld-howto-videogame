@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
+<meta name="description" content="A small game you can play, inspect, and change. No setup needed.">
 <title>Open World How-To</title>
 <!-- Tab icon: a tiny SVG drawn right here, grass, water, gold player. Line breaks are ignored. -->
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8'>
@@ -25,7 +26,7 @@
     align-items: center;
   }
   canvas {
-    margin-top: 16px;
+    margin-top: 0;
     background: #000;
   }
   p {
@@ -34,6 +35,11 @@
     color: #c8c8d0;
   }
   p a { color: #ffd75e; }
+  main h1 { font-size: 18px; margin: 8px 0; }
+  main p { margin: 8px 0; line-height: 1.5; }
+  main > details { width: 640px; color: #c8c8d0; font-size: 15px; }
+  main summary { cursor: pointer; }
+  :focus-visible { outline: 2px solid #ffd75e; outline-offset: 3px; }
   /* The X-ray panel. Its own small stylesheet so it is obvious, just from
      reading this file top to bottom, that deleting it costs nothing else. */
   aside#xray {
@@ -124,13 +130,17 @@
 </head>
 <body>
 <main>
-<canvas id="gameCanvas"></canvas>
-<p>
-  Arrow keys or WASD to walk. Space to talk and to pick a dialogue choice.
-  K saves, L loads, N starts over. T shows a clock, if you want to time a
-  run. X opens the X-ray. Inside the X-ray, P pauses, . runs one tick, and
-  two buttons copy the moment into a question
-  for an AI.<br><a href="how.html">How this was made</a> · or open this file.</p>
+<h1>Open World How-To · play, inspect, change</h1>
+<canvas id="gameCanvas" aria-label="Open-world game. You are the gold square."></canvas>
+<p>You are the gold square. Arrows or WASD walk; face a villager and press Space to talk.
+  In a conversation, Up/Down chooses and Space confirms. Walk over items to collect them.</p>
+<p>Curious how it works? Press <strong>X</strong> to see a key press become a moving character.<br>
+  <a href="how.html">How this was made</a> · <a href="TEARDOWN.md">Read the code</a> ·
+  <a href="CHANGE-ME.md">Change one thing</a></p>
+<details><summary>Save, restart, and optional tools</summary>
+  <p>K saves in this browser; L loads. N erases your save and starts over. T toggles a run timer.
+    With X-ray open, P pauses and . runs one tick. Its buttons copy a question for an AI.</p>
+</details>
 </main>
 <!-- The X-ray: a window onto the pipe. Hidden until you press X. Filled in by
      section 11 at the bottom of the script. -->
@@ -149,8 +159,8 @@
       question you can paste into any chat model. Press P to hold a moment.</p>
     <button id="xrayAskExplain" type="button">copy: explain this frame</button>
     <button id="xrayAskDraw" type="button">copy: draw this frame</button>
-    <p class="hint" id="xrayAskStatus">Nothing copied yet.</p>
-    <textarea id="xrayAskText" rows="5" readonly hidden></textarea>
+    <p class="hint" id="xrayAskStatus" role="status">Nothing copied yet.</p>
+    <textarea id="xrayAskText" aria-label="Question to copy" rows="5" readonly hidden></textarea>
   </section>
   <section>
     <h3>4 · INPUT — intents right now</h3>
@@ -838,18 +848,19 @@ const keysTheGameUses = [
 ];
 
 function onKeyDown(event) {
+  // Links, disclosure controls and the copy box keep their native keyboard actions.
+  if (event.target.closest('a, button, summary, textarea, input, select')) return;
+  if (event.ctrlKey || event.metaKey || event.altKey) return;
   // Lower-case so Shift+W still counts as W.
   const key = event.key.toLowerCase();
   if (keysTheGameUses.includes(key)) {
     // Stop arrows and Space from scrolling the page underneath the game.
     event.preventDefault();
   }
-  setMovementIntent(key, true);
-
-  // Holding a key down makes the browser fire keydown again and again.
-  // That is harmless for movement (moveUp just becomes true again) but a
-  // held Space must not "talk" sixty times, so repeats stop here.
+  // Held-direction flags already repeat walking. Browser repeats must not
+  // re-arm a direction cleared by dialogue or make held Space talk again.
   if (event.repeat) return;
+  setMovementIntent(key, true);
 
   if (key === ' ') intents.interactPressed = true;
   if (key === 'arrowup' || key === 'w') intents.menuUpPressed = true;
@@ -863,6 +874,15 @@ function onKeyDown(event) {
 function onKeyUp(event) {
   const key = event.key.toLowerCase();
   setMovementIntent(key, false);
+}
+
+// A key released in another tab never sends us keyup. Forget pending input
+// when focus leaves, so coming back cannot walk or trigger an old action.
+function clearIntentsOnBlur() {
+  for (const name in intents) {
+    intents[name] = false;
+  }
+  intents.newestMoveDirection = null;
 }
 
 // UPDATE calls this at the end of every step so a press counts once.
@@ -1646,16 +1666,28 @@ function saveGame() {
 // `inventory` is an array of item ids; `pickedUpItems` is an object keyed by
 // item id (see STATE), so the two are checked differently on purpose.
 function saveLooksComplete(saved) {
+  if (typeof saved !== 'object' || saved === null) return false;
   if (typeof saved.player !== 'object' || saved.player === null) return false;
-  if (maps[saved.currentMap] === undefined) return false;
+  if (!Object.hasOwn(maps, saved.currentMap)) return false;
+  if (!Object.hasOwn(directionOffsets, saved.player.facing)) return false;
+  const rows = maps[saved.currentMap].rows;
+  const player = saved.player;
+  if (!Number.isInteger(player.tileX) || !Number.isInteger(player.tileY)) return false;
+  if (player.tileY < 0 || player.tileY >= rows.length) return false;
+  if (player.tileX < 0 || player.tileX >= rows[0].length) return false;
   if (!Array.isArray(saved.inventory)) return false;
   if (typeof saved.pickedUpItems !== 'object' || saved.pickedUpItems === null) return false;
   if (typeof saved.flags !== 'object' || saved.flags === null) return false;
+  if (Array.isArray(saved.pickedUpItems) || Array.isArray(saved.flags)) return false;
+  for (const flag in saved.flags) {
+    if (!Object.hasOwn(state.flags, flag) || typeof saved.flags[flag] !== 'boolean') return false;
+  }
   for (const itemId of saved.inventory) {
     if (findItemById(itemId) === null) return false;
   }
   for (const itemId in saved.pickedUpItems) {
     if (findItemById(itemId) === null) return false;
+    if (typeof saved.pickedUpItems[itemId] !== 'boolean') return false;
   }
   return true;
 }
@@ -1676,7 +1708,9 @@ function loadGame() {
     state.player.stepCooldown = 0;
     state.inventory = saved.inventory;
     state.pickedUpItems = saved.pickedUpItems;
-    state.flags = saved.flags;
+    for (const npc of npcs) {
+      state.flags[npc.setsFlag] = saved.flags[npc.setsFlag] === true;
+    }
     state.dialogue = null;
     return true;
   } catch (error) {
@@ -1748,6 +1782,7 @@ canvas.height = viewportHeightInTiles * tileSizeInPixels + hudHeightInPixels;
 
 window.addEventListener('keydown', onKeyDown);
 window.addEventListener('keyup', onKeyUp);
+window.addEventListener('blur', clearIntentsOnBlur);
 
 // Coming back after closing the tab picks up where you left off.
 if (loadGame()) {
@@ -2172,6 +2207,8 @@ function requestOneStep() {
 // The X-ray listens to the keyboard on its own, separate from INPUT, so
 // that section stays about the game and never has to mention this panel.
 function onXrayKeyDown(event) {
+  if (event.target.closest('a, button, summary, textarea, input, select')) return;
+  if (event.ctrlKey || event.metaKey || event.altKey) return;
   const key = event.key.toLowerCase();
   // The one place the X-ray watches the keyboard for the game's sake: the
   // diagram's top row. Everything else it shows is read back out of state.

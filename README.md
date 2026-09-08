@@ -1,20 +1,12 @@
 # How to Read an Open-World Video Game
-An open-world adventure game **built to be read, not played.** One HTML file, ~2,100 lines,
-no build, no dependencies, no internet. It runs in Chrome.
+A small adventure built to help you learn how games work. One file, no setup or dependencies.
 
-**Open it:** [play it on GitHub Pages](https://lpcode808.github.io/demo-openworld-howto-videogame/)
-or download `game.html` and double-click. Arrows/WASD walk, Space talks, K saves,
-L loads, N starts over, T times a run. Four quests, three maps, ten minutes.
-Finish the three village quests and the forest gate in the north treeline opens.
-
-**Watch it run:** press X for the x-ray, a side panel that shows keys becoming intents becoming
-state becoming pixels while you play. Inside it, P freezes the world, `.` runs one tick, and two
-buttons copy the frozen moment into a question for any AI chat — explain it, or draw it.
-
-**Read it:** open `game.html` in a text editor with line numbers. Ten numbered sections plus an
-optional eleventh; the banner at the top of each says what to look for. Start at the bottom,
-`10 · BOOT`.
-
-**Guided:** [`TEARDOWN.md`](./TEARDOWN.md) is six 10–15 minute reads with questions and answers.
-[`CHANGE-ME.md`](./CHANGE-ME.md) is ten edits, easiest first. The spec is [`PRD.md`](./PRD.md).
-[`how.html`](./how.html) is the time-lapse of how the file itself got written.
+**Play:** [open the demo](https://lpcode808.github.io/demo-openworld-howto-videogame/) in Chrome.
+For offline use, download this repository as a ZIP, unzip it, and double-click `game.html`.
+You are the gold square. Arrows/WASD walk; Space talks; Up/Down selects a dialogue choice.
+Three village quests take about five minutes; completing them opens the optional Old Forest.
+**Inspect:** press X to watch keys become game state and pixels. P pauses; `.` advances one tick.
+**Read:** open `game.html` in a text editor. Start at `10 · BOOT`; section 11 is optional.
+[`TEARDOWN.md`](./TEARDOWN.md) guides six short reads; [`CHANGE-ME.md`](./CHANGE-ME.md) offers ten edits.
+**How it was built:** [read the illustrated history](https://lpcode808.github.io/demo-openworld-howto-videogame/how.html).
+K saves in this browser; L loads; N erases the save and restarts. The spec is [`PRD.md`](./PRD.md).
