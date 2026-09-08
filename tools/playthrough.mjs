@@ -1547,7 +1547,7 @@ async function waitForCanvasReady(page) {
 async function main() {
   const startTimeMs = Date.now();
   const browser = await chromium.launch({ headless: true });
-  const context = await browser.newContext();
+  const context = await browser.newContext({ offline: true });
   // The X-ray "ask an AI" buttons copy to the real clipboard; grant it here
   // so runXrayChecks can read the clipboard back and confirm that.
   await context.grantPermissions(['clipboard-read', 'clipboard-write']);

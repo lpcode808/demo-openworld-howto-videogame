@@ -327,7 +327,7 @@ async function main() {
 
   const consoleIssues = []; // { type: 'error' | 'warning' | 'pageerror', text }
   const browser = await chromium.launch({ headless: true });
-  const context = await browser.newContext();
+  const context = await browser.newContext({ offline: true });
   const page = await context.newPage();
   page.on('console', (message) => {
     const type = message.type();

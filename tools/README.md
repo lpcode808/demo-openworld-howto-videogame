@@ -12,4 +12,5 @@ Re-run all four after any change to `game.html` before calling the change done.
 For maintainers: use Node 22, then `npm install --no-save --package-lock=false playwright@1.55.0`
 and `npx playwright install chromium` before running the browser checks. These dependencies are
 for the checks only; the game still has no dependencies or build step. GitHub Actions runs all
-four checks on pull requests and pushes to main.
+four checks on pull requests and pushes to main. Both browser checks open the file with
+network access disabled, matching the offline acceptance requirement.
