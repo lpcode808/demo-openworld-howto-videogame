@@ -404,3 +404,19 @@ elsewhere. Desktop agents read the newest entry after syncing.
   done. Merged to `main` as a PR from this branch.
 - Routing: none. Next open student ideas are still `CHANGE-ME.md` extras A (voices) and C
   (sound); neither should be built unasked.
+
+## 2026-09-08 — Share-ready learning flow and reliability review
+- Three parallel agents reviewed architecture, newcomer UX, and how.html; the parent judged
+  changes and commissioned independent cross-review. PR #13 contains the integrated result.
+- Added basic orientation, guide links, accessible controls, optional advanced help, and
+  responsive input/rules/render, snapshot-purity, and quest-gate diagrams. Kept all 12 phases.
+- Hardened malformed save rejection while preserving legacy flags; clear input on blur,
+  respect native keyboard controls/shortcuts, and prevent dialogue key-repeat movement.
+- Re-anchored guide citations. Mechanical checks pass: required read 1,794/1,800; whole file
+  2,241/2,600; zero banned-string hits, long lines, long functions, or render mutations.
+- Maintainer browser tests now use a portable Playwright import and explicitly run offline.
+  Added GitHub Actions for all four checks; see PR #13 checks for the browser acceptance log.
+  Local browser preview/file access was blocked, so CI is the pre-merge browser gate.
+- Six required-read lines remain. Preserve the teaching-first scope and removable X-ray.
+  Beginner reading time and human classroom acceptance remain human judgments.
+- Routing: none.

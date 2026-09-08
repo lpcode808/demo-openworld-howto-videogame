@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>How this was made — Open World How-To</title>
+<title>How it works &amp; how it was made — Open World How-To</title>
 <!-- Tab icon: a tiny SVG drawn right here, grass, water, gold player. Line breaks are ignored. -->
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8'>
 <rect width='8' height='8' fill='%235cab4a'/><rect y='6' width='8' height='2' fill='%233a7bd5'/>
@@ -21,6 +21,10 @@
   a {
     color: #ffd75e;
   }
+  html { scroll-padding-top: 100px; }
+  a:focus-visible, summary:focus-visible { outline: 2px solid #ffd75e; outline-offset: 5px; }
+  .skip-link { position: absolute; left: 16px; top: -80px; z-index: 3; padding: 12px; background: #101018; }
+  .skip-link:focus { top: 8px; }
   a:hover {
     color: #fff3b0;
   }
@@ -273,12 +277,48 @@
     color: #b4b4c4;
     font-size: 13px;
   }
+
+  /* Diagrams stay ordinary HTML: readable without scripts and stacked on small screens. */
+  .start-links, .frame-flow { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  .start-links { margin: 24px 0 36px; }
+  .start-links a { padding: 14px; border: 1px solid #44445c; text-decoration: none; }
+  .start-links a:hover { background: #26263a; }
+  .start-links strong { display: block; color: #ffd75e; font-size: 15px; }
+  .start-links span { display: block; margin-top: 6px; color: #c8c8d0; font-size: 13px; }
+  .frame-card { padding: 14px; border: 1px solid #44445c; background: #101018; }
+  .frame-card h3 { color: #ffd75e; font-size: 14px; }
+  .frame-card p { font-size: 13px; margin: 8px 0 0; }
+  .frame-card code, .test-card strong { overflow-wrap: anywhere; }
+  .rule-check { border-top: 1px dashed #66667b; padding-top: 10px; }
+  .snapshot-flow { display: grid; grid-template-columns: 1fr auto 1fr; gap: 12px; align-items: center; }
+  .snapshot { padding: 14px; border: 1px solid #44445c; text-align: center; }
+  .snapshot strong { display: block; color: #ffd75e; font-size: 14px; }
+  .snapshot code { display: block; margin-top: 8px; font-size: 13px; }
+  .snapshot-action { text-align: center; color: #c8c8d0; font-size: 13px; }
+  .gate-flags { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+  .gate-flags span { padding: 8px 12px; border: 1px solid #44445c; font-size: 13px; }
+  .gate-check { margin: 14px auto; text-align: center; color: #ffd75e; font-size: 14px; }
+  .gate-outcomes { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .gate-outcomes p { padding: 14px; margin: 0; border: 1px solid #44445c; font-size: 13px; }
+  .gate-outcomes strong { display: block; margin-bottom: 5px; }
+  .infographic figcaption, .phase .tag, details.closeup summary { font-size: 12px; }
+  .pause-path { flex-wrap: wrap; }
+  @media (max-width: 600px) {
+    main { padding: 32px 16px 64px; }
+    header { padding: 12px 16px; gap: 6px 16px; }
+    .start-links, .frame-flow, .gate-outcomes { grid-template-columns: 1fr; }
+    .snapshot-flow { grid-template-columns: 1fr; }
+    .phase { padding: 20px 16px; }
+    h1 { font-size: 26px; }
+    .build-timeline li { grid-template-columns: 65px 14px 1fr; gap: 8px; }
+  }
 </style>
 </head>
 <body>
+<a class="skip-link" href="#main">Skip to content</a>
 <header>
-  <strong>How this was made</strong>
-  <nav>
+  <strong>Open World How-To</strong>
+  <nav aria-label="Project">
     <a href="game.html">Play the game</a>
     ·
     <a href="TEARDOWN.md">Read it</a>
@@ -286,7 +326,7 @@
     <a href="PRD.md">The spec</a>
   </nav>
 </header>
-<main>
+<main id="main">
 
 <!--
   Scaffolding note for later agents
@@ -310,32 +350,57 @@
   facts changed.
 -->
 
-<h1>A game, built out loud.</h1>
+<h1>A small world. Every rule in view.</h1>
 
 <p class="lede">
-  A student asked <em>how are video games made?</em> The answer is one
-  HTML file you can open from disk. This page is the time-lapse of how
-  that file got written — by a teacher and a few long-running AI agents,
-  in a first thirty-hour night on 1 and 2 September 2026, plus a second
-  day of fixes on 3 September.
+  A student asked <em>how are video games made?</em> This answer is a small adventure
+  you can play, inspect, and change. The whole game lives in one HTML file:
+  no install, account, or internet connection needed once you have the file.
 </p>
+<p>
+  Walk around a village, help three people, then open the Old Forest for a fourth quest.
+  The important discovery is underneath: a key becomes a request, a rule changes the
+  world's memory, and a drawing shows the result.
+</p>
+<div class="start-links" aria-label="Choose where to start">
+  <a href="game.html"><strong>1 · Play a little</strong>
+    <span>Use arrows or WASD. Face a person and press Space to talk.</span></a>
+  <a href="#works"><strong>2 · See the rules</strong>
+    <span>Follow one key press. Then watch the same steps live with X-ray.</span></a>
+  <a href="CHANGE-ME.md"><strong>3 · Change something</strong>
+    <span>Start with one number or colour. Ten edits take you further.</span></a>
+</div>
 
-<p class="hint">
-  Third pass. Times are Hawaiʻi time, from git. The dialogue is
-  summarized, not a transcript. The X-ray phases have their close-ups;
-  the other phases are still waiting for theirs. Close-ups are folded;
-  click one to open it.
+<section aria-labelledby="works">
+<h2 id="works">How the game works</h2>
+<p>
+  Think of <code>state</code> as the game's notebook: where you are, what you are
+  carrying, and which quests are done. The map and dialogue are typed data.
+  The rules read that data and the notebook to decide what your next action does.
+  The screen is a picture of the notebook, redrawn each frame.
 </p>
+<p>
+  <strong>Try the connection:</strong> open the game, press <kbd>X</kbd>, and walk toward a tree.
+  The panel shows your request and the collision check that refuses the step.
+  With the panel open, <kbd>P</kbd> pauses the world and <kbd>.</kbd> runs one update.
+  The optional panel observes the game; you can learn the first ten source sections without it.
+</p>
+<p class="hint">
+  Want the code tour? <a href="TEARDOWN.md">Six short reads</a> starts at
+  <code>10 · BOOT</code> and <code>8 · LOOP</code>. Below: two diagrams, then the
+  build history of the teacher and AI agents who made this teaching example.
+</p>
+</section>
 
 <nav class="toc" aria-label="On this page">
   <p class="toc-head">On this page</p>
   <p class="hint">
-    Twelve phases. Skim the takeaways in ten minutes, or follow one
-    thread. Stopping after the jump list is allowed.
+    Start with the game diagrams, or jump into the twelve build phases.
+    Each phase opens with its takeaway; optional close-ups fold open.
   </p>
   <ol>
-    <li><a href="#adept">The whole story</a></li>
-    <li><a href="#pictures">The two pictures</a></li>
+    <li><a href="#pictures">Diagrams: a key press and a frame</a></li>
+    <li><a href="#adept">The build story</a></li>
     <li><a href="#threads">Three agent threads</a></li>
     <li><a href="#phase-0">Phase 0 · Someone writes the recipe first</a></li>
     <li><a href="#phase-1">Phase 1 · Does a blank browser even do this?</a></li>
@@ -352,6 +417,55 @@
     <li><a href="#tests">How they knew it worked</a></li>
   </ol>
 </nav>
+
+<!-- ========== Two pictures ========== -->
+
+<h2 id="pictures">From a key press to a picture</h2>
+
+<p>
+  These are different jobs, even though they live in one file. Keyboard events record
+  requests when you press or release a key. The loop runs the rules in fixed time steps,
+  then draws once per frame. A frame can contain zero, one, or several updates.
+</p>
+
+<figure class="infographic">
+  <figcaption>Follow a request to move right · read 1 → 2 → 3</figcaption>
+  <div class="frame-flow">
+    <section class="frame-card">
+      <h3>1 · INPUT</h3>
+      <p><strong>Keyboard → intents</strong></p>
+      <p>Right arrow writes down a request to move right. It does not move the player.</p>
+    </section>
+    <section class="frame-card">
+      <h3>2 · UPDATE</h3>
+      <p><strong>Intents → state</strong></p>
+      <p>When a step is due, read the request and turn the player right.</p>
+      <p class="rule-check"><strong>Ask COLLIDE:</strong> can we enter that tile?
+        Yes: change position. No: stay on this tile.</p>
+    </section>
+    <section class="frame-card">
+      <h3>3 · RENDER</h3>
+      <p><strong>State → screen</strong></p>
+      <p>Read the position and facing direction. Draw the world and player.
+        Leave the notebook unchanged.</p>
+    </section>
+  </div>
+  <p class="infographic-note">The numbers here show the order of the action.
+    In the source, these are sections 4, 5, and 7; COLLIDE is section 6.</p>
+</figure>
+
+<figure class="infographic">
+  <figcaption>The check that drawing changes nothing</figcaption>
+  <div class="snapshot-flow">
+    <div class="snapshot"><strong>Before drawing</strong><code>Snapshot of state</code></div>
+    <div class="snapshot-action">RENDER draws<br><span aria-hidden="true">→</span></div>
+    <div class="snapshot"><strong>After drawing</strong><code>Snapshot of state</code></div>
+  </div>
+  <p class="infographic-note"><strong>These must match exactly.</strong> The loop compares
+    the whole state before and after drawing. If RENDER changed anything, the game reports
+    an error. The X-ray uses a separate before-and-after comparison around UPDATE to show
+    which rules changed the notebook.</p>
+</figure>
 
 <!-- ========== ADEPT of the whole story ========== -->
 
@@ -399,41 +513,18 @@
 
   <dt>Technical</dt>
   <dd>
-    <code>game.html</code> · about 2,130 lines whole, of which the
-    required read (sections 1–10) is about 1,690 · ten numbered
-    sections plus an optional eleventh · no build, no dependencies ·
-    <a href="PRD.md">PRD §3a</a> keeps the exact numbers · PR
+    <code>game.html</code> · ten numbered sections plus an optional eleventh ·
+    no build, no dependencies · <a href="PRD.md">PRD §3a</a> explains the separate
+    reading budgets for the core game and its optional tools · PR
     <a href="https://github.com/lpcode808/demo-openworld-howto-videogame/pull/2">#2</a>
     onward, plus several sessions merged straight to main.
   </dd>
 </dl>
 
-<!-- ========== Two pictures ========== -->
-
-<h2 id="pictures">The two pictures</h2>
 
 <p>
-  The file is one sentence, sixty times a second. Only the middle of
-  it is allowed to change the world.
-</p>
-
-<figure class="infographic" aria-label="The game pipeline">
-  <figcaption>One frame: the factory line</figcaption>
-  <div class="pipeline">
-    <div class="pipeline-node"><strong>keyboard</strong><small>your key</small></div><span class="pipeline-arrow" aria-hidden="true">→</span>
-    <div class="pipeline-node"><strong>INPUT</strong><small>writes a note</small></div><span class="pipeline-arrow" aria-hidden="true">→</span>
-    <div class="pipeline-node"><strong>intents</strong><small>what you meant</small></div><span class="pipeline-arrow" aria-hidden="true">→</span>
-    <div class="pipeline-node hot"><strong>UPDATE</strong><small>the only writer</small></div><span class="pipeline-arrow" aria-hidden="true">→</span>
-    <div class="pipeline-node"><strong>state</strong><small>what is true</small></div><span class="pipeline-arrow" aria-hidden="true">→</span>
-    <div class="pipeline-node"><strong>RENDER</strong><small>reads only</small></div><span class="pipeline-arrow" aria-hidden="true">→</span>
-    <div class="pipeline-node"><strong>screen</strong><small>the picture</small></div>
-  </div>
-  <p class="infographic-note">Gold marks the one stage allowed to change the world.</p>
-</figure>
-
-<p>
-  The build is that sentence, stretched across two days. Each
-  box below is a phase. Times are Hawaiʻi time, because that is where
+  The first build took about thirty hours on 1–2 September 2026, followed
+  by another day of fixes on 3 September. Each entry below is a phase. Times are Hawaiʻi time, because that is where
   the classroom is, and each one is when that piece landed on the main
   branch.
 </p>
@@ -1244,6 +1335,23 @@ after pressing P
     in one move empties the bag and flips the last flag.
   </p>
 
+  <figure class="infographic">
+    <figcaption>One gate, three conditions</figcaption>
+    <div class="gate-flags">
+      <span>Healer helped</span><span>Bridge built</span><span>Elder lit</span>
+    </div>
+    <p class="gate-check">↓ Are all three quest flags true?</p>
+    <div class="gate-outcomes">
+      <p><strong>No → gate stays shut</strong>The tile refuses movement.
+        Keep helping the village.</p>
+      <p><strong>Yes → gate opens</strong>The tile lets you enter the forest.
+        Its colour changes too.</p>
+    </div>
+    <p class="infographic-note">COLLIDE and RENDER ask the same question,
+      <code>villageQuestsAllDone()</code>. One uses the answer for movement;
+      the other uses it for the picture.</p>
+  </figure>
+
   <details class="closeup">
   <summary>Close-up · one letter opens a second map</summary>
   <p>
@@ -1272,8 +1380,7 @@ after pressing P
   <p>
     Nobody had measured the grey text against its dark background
     until this pass. Measured, the hint grey came out at 4.3:1 to
-    5.3:1 against the navy — under the 4.5:1 bar small text is held
-    to. It reads 8.9:1 or better now, everywhere it was used.
+    5.3:1 against the navy — some combinations below the 4.5:1 bar for small text. It reads 8.9:1 or better now, everywhere it was used.
   </p>
   <ul>
     <li><strong>Type got bigger, not just brighter.</strong> Sizes
@@ -1357,8 +1464,9 @@ after pressing P
 </figure>
 
 <p>
-  The five-minute playthrough the spec asked for came in around
-  half a minute, every time they timed it.
+  The automated player completed the original village route in around half a minute.
+  That checks the route and its rules; it does not measure a beginner reading dialogue.
+  The design target is a five-minute village playthrough, with the forest available afterwards.
 </p>
 
 <p class="hint">
@@ -1369,27 +1477,19 @@ after pressing P
 
 <!-- ========== What's next ========== -->
 
-<h2 id="next">What this page is waiting for</h2>
-
+<h2 id="next">Your turn: make one visible change</h2>
 <p>
-  This is scaffolding. The spine is here so the next session does
-  not have to rediscover the shape. Useful additions, if you are
-  that session:
+  Download <code>game.html</code> from <a
+  href="https://github.com/lpcode808/demo-openworld-howto-videogame/blob/main/game.html">the source</a>,
+  use GitHub’s <strong>Download raw file</strong> button, then open that file in Chrome.
+  Keep a copy before editing. Follow the first exercise in
+  <a href="CHANGE-ME.md">Ten edits</a>: change one number, save the file, and reload.
+  You do not need to understand every line to begin.
 </p>
-
-<ul>
-  <li>Close-ups under phases 0, 1, 2 and 6, from the Cursor threads
-      that lived them. Phases 3, 4, 5 and 7 have theirs.</li>
-  <li>A screenshot under the phase it belongs to.</li>
-  <li>Another correction, if you find one. The times were wrong once
-      already, and they came from git, not from sitting in the room.</li>
-  <li>The Edge-on-a-school-laptop result, when someone finally
-      does it.</li>
-</ul>
-
-<p>
-  Please extend a phase. Do not rewrite the spine unless the spine
-  is wrong. Each phase is <code>&lt;article id="phase-N"&gt;</code>.
+<p class="hint">
+  The build phases record what was known at the time. Their test counts and line counts
+  are historical; the current rules live in <a href="PRD.md">the spec</a>.
+  Times are Hawaiʻi time, taken from git. Session dialogue is summarized, not transcribed.
 </p>
 
 <footer>
