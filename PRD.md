@@ -79,7 +79,8 @@ These are not preferences. A build that violates one is rejected.
 **Platform**
 - Single file. Vanilla JavaScript. Zero dependencies, zero network requests, zero build step.
 - Opens by double-clicking the file. Must work from `file://` with the network turned off.
-- Must run in **Microsoft Edge** (school-managed devices) and Chrome. Nothing else is tested.
+- Must run in **Chrome**. *(v1.7: the maintainer settled it — everyone here uses Chrome, so
+  Edge is no longer a target and the standing "Edge on a school laptop" test is closed.)*
 - All art is drawn with Canvas 2D primitives — rectangles, circles, text. **No image files, no
   sprite sheets, no base64 blobs.** Colored rectangles are correct and on-brief.
 
@@ -407,9 +408,8 @@ for itself by trimming, or go after BOOT.
 
 **Staffing.** The orchestrating model measured, judged every report and re-ran the four tools
 before each commit; Sonnet-model agents did the two bug hunts, both reviews, the fixes and
-most of the `how.html` writing. Not done, still: **Edge on a school laptop.** Two new things to
-eyeball there: the 500 px panel next to a 640 px canvas on a 1366 px screen, and a `<details>`
-summary in the panel.
+most of the `how.html` writing. The "Edge on a school laptop" test every earlier handoff carried
+is **closed, not done**: the maintainer said everyone uses Chrome, so §3 now names Chrome alone.
 
 ## 5. Scope — what the game actually is
 
@@ -538,7 +538,7 @@ No solutions.
 
 Mechanically checkable — run these before calling it done:
 
-- [ ] Opens by double-click in Edge and Chrome. **Zero console errors, zero warnings.**
+- [ ] Opens by double-click in Chrome. **Zero console errors, zero warnings.**
 - [ ] Works with the network disabled.
 - [ ] `wc -l game.html` ≤ 2000. No line > 100 chars.
 - [ ] Each banned string from §3 returns zero grep hits.

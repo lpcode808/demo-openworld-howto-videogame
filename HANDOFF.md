@@ -399,4 +399,8 @@ elsewhere. Desktop agents read the newest entry after syncing.
   panel beside the 640 px canvas at 1366 px, the `<details>` summary, name strips on the
   forest floor. Also not done on purpose: the how.html student read suggested merging phases
   5 and 7 (both about the panel explaining itself) — a spine change, left for the maintainer.
-- Routing: → merge the branch; then the Edge check is, again, the most overdue thing here.
+- **Update, same session:** the maintainer closed the Edge question — everyone uses Chrome.
+  PRD §3, AGENTS.md, README and TEARDOWN now name Chrome alone; the Edge test is closed, not
+  done. Merged to `main` as a PR from this branch.
+- Routing: none. Next open student ideas are still `CHANGE-ME.md` extras A (voices) and C
+  (sound); neither should be built unasked.

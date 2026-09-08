@@ -53,7 +53,7 @@ work — §5 still lists it as a non-goal.
 - Three maps, four quests, eleven sections. Level one is the village and must stay a
   five-minute playthrough (PRD §5); level two is behind the forest gate and only opens
   after it, which is what keeps that rule true.
-- Must run in **Microsoft Edge** — the school's managed devices — and Chrome. Nothing else.
+- Must run in **Chrome**. Edge was dropped as a target in v1.7 (PRD §3); do not reopen it.
 - The two line budgets above · ≤ 100 chars/line · ≤ 40 lines/function.
 - The ten sections of PRD §4, in order, each with its numbered banner and its "What to look for" line.
 - **RENDER never mutates `state`.** The dev assertion that proves it ships in the file.

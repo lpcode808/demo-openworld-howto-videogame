@@ -15,7 +15,7 @@ Each read below takes 10–15 minutes and stands on its own. Every read has the 
 
 ## Before you start
 
-- Open `game.html` twice: once in **Microsoft Edge or Chrome** (double-click it) and once in a
+- Open `game.html` twice: once in **Chrome** (double-click it) and once in a
   text editor that shows line numbers (VS Code, Notepad++, even Notepad with the status bar on).
 - To see the browser's **console**, press **F12** in the game tab and click *Console*. Errors
   the game throws land there.
