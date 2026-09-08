@@ -60,6 +60,12 @@
     font-size: 14px;
     color: #eee;
   }
+  aside#xray summary {
+    margin: 10px 0 4px 0;
+    font-size: 14px;
+    color: #eee;
+    cursor: pointer;
+  }
   aside#xray ul, aside#xray pre {
     margin: 0;
     padding: 0;
@@ -149,9 +155,8 @@
   <section>
     <h3>4 · INPUT — intents right now</h3>
     <p class="hint">What you are asking the game for. Lit means true this instant.
-      newestMoveDirection is the odd one out: it holds the direction you pressed last
-      until UPDATE takes it, which is usually within one step, so it reads null almost
-      always. Press P to freeze the world, then an arrow, and you can see it waiting.</p>
+      newestMoveDirection is different: it holds your last press until UPDATE reads
+      it, so it is usually null. Press P, then an arrow, to catch it waiting.</p>
     <ul id="xrayIntents"></ul>
   </section>
   <section>
@@ -166,11 +171,15 @@
     <p class="hint">The same questions COLLIDE asks before it lets you step.</p>
     <pre id="xrayCollide"></pre>
   </section>
+  <!-- Raw JSON is the most code-like box here, so it opens on click, per PRD §0a. -->
   <section>
-    <h3>3 · STATE — everything the game knows</h3>
-    <p class="hint">The whole world, live. Only intents (above), the loop's clock and
-      this panel's own counters live outside it, and none of them is game knowledge.</p>
-    <pre id="xrayState"></pre>
+    <details>
+      <summary>3 · STATE — everything the game knows (click to open)</summary>
+      <p class="hint">The whole world, live. Press P to freeze it so you can read it.
+        Only intents (above), the loop's clock and this panel's own counters live
+        outside it, and none of them is game knowledge.</p>
+      <pre id="xrayState"></pre>
+    </details>
   </section>
   <section>
     <h3>7 · RENDER + 8 · LOOP — the heartbeat</h3>
@@ -309,6 +318,12 @@ const layout = {
   hudTextX: 12,
   hudQuestColumnX: 350,
   hudLineHeight: 24,
+  // The bag line word-wraps before it can run into the quest column: the
+  // quest column starts at 350 and the bag text starts at 12, so 320 leaves
+  // a gap. A wrapped line indents to 52 so it lines up under the first name,
+  // just after 'Bag: '.
+  hudBagMaxWidth: 320,
+  hudBagWrapX: 52,
   // The speech box.
   dialogueMargin: 8,
   dialogueTextX: 24,
@@ -319,7 +334,7 @@ const layout = {
   bogTuftInset: 6,
   bogTuftHeight: 4,
   // The notice banner at the top.
-  noticeWidth: 360,
+  noticeWidth: 400,
   noticeHeight: 34,
   // The speedrun clock, tucked into the top-right corner of the world.
   timerRightInset: 10,
@@ -885,7 +900,12 @@ function update(stepSeconds) {
     // While a speech box is open the same keys mean something else. The
     // arrows that moved the menu must not also queue up a step for when
     // the box closes, so the remembered direction is thrown away here.
+    // The four held-direction booleans are cleared too: hold one, and you must press it again.
     intents.newestMoveDirection = null;
+    intents.moveUp = false;
+    intents.moveDown = false;
+    intents.moveLeft = false;
+    intents.moveRight = false;
     updateDialogue();
   }
   clearPressedIntents();
@@ -1385,15 +1405,7 @@ function drawHud() {
   context.fillStyle = colors.hudText;
   context.fillText('Place: ' + maps[state.currentMap].title, textX, top + lineHeight);
 
-  let bagText = '(empty)';
-  if (state.inventory.length > 0) {
-    const names = [];
-    for (const itemId of state.inventory) {
-      names.push(findItemById(itemId).name);
-    }
-    bagText = names.join(', ');
-  }
-  context.fillText('Bag: ' + bagText, textX, top + lineHeight * 2);
+  drawBag(top);
 
   context.fillStyle = colors.hudDim;
   context.font = fonts.small;
@@ -1402,6 +1414,47 @@ function drawHud() {
   context.fillText(helpText, textX, top + hudHeightInPixels - lineHeight / 2);
 
   drawQuestList(top);
+}
+
+// The bag line, word-wrapped so a long inventory never runs into the quest
+// column. Its own function for the same reason drawQuestList is: it is its
+// own idea, and drawHud is the length it is allowed to be.
+function drawBag(top) {
+  const lineHeight = layout.hudLineHeight;
+  context.font = fonts.hud;
+  context.fillStyle = colors.hudText;
+
+  if (state.inventory.length === 0) {
+    context.fillText('Bag: (empty)', layout.hudTextX, top + lineHeight * 2);
+    return;
+  }
+
+  const names = [];
+  for (const itemId of state.inventory) {
+    names.push(findItemById(itemId).name);
+  }
+
+  // Build the line one name at a time. Before adding a name, measure what
+  // the line would become; if that is too wide, draw what we have and start
+  // a fresh HUD line indented under the first name instead of under 'Bag: '.
+  // Lines 2, 3 and 4 are free for this. Like hudHeightInPixels, this does
+  // not handle a bag long enough to need a fourth line — that is not a case
+  // the game can reach with three items to find.
+  let lineSoFar = 'Bag: ';
+  let lineX = layout.hudTextX;
+  let linesUsed = 0;
+  for (let index = 0; index < names.length; index++) {
+    const name = names[index];
+    const separator = index === names.length - 1 ? '' : ', ';
+    if (context.measureText(lineSoFar + name).width > layout.hudBagMaxWidth) {
+      context.fillText(lineSoFar, lineX, top + lineHeight * (2 + linesUsed));
+      linesUsed += 1;
+      lineX = layout.hudBagWrapX;
+      lineSoFar = '';
+    }
+    lineSoFar += name + separator;
+  }
+  context.fillText(lineSoFar, lineX, top + lineHeight * (2 + linesUsed));
 }
 
 // The right-hand column of the HUD: one line per quest, ticked when its
@@ -1588,6 +1641,25 @@ function saveGame() {
   }
 }
 
+// A save written by an older version of this file, or edited by hand, must
+// never leave the game half-loaded, so every shape it assumes is checked here first.
+// `inventory` is an array of item ids; `pickedUpItems` is an object keyed by
+// item id (see STATE), so the two are checked differently on purpose.
+function saveLooksComplete(saved) {
+  if (typeof saved.player !== 'object' || saved.player === null) return false;
+  if (maps[saved.currentMap] === undefined) return false;
+  if (!Array.isArray(saved.inventory)) return false;
+  if (typeof saved.pickedUpItems !== 'object' || saved.pickedUpItems === null) return false;
+  if (typeof saved.flags !== 'object' || saved.flags === null) return false;
+  for (const itemId of saved.inventory) {
+    if (findItemById(itemId) === null) return false;
+  }
+  for (const itemId in saved.pickedUpItems) {
+    if (findItemById(itemId) === null) return false;
+  }
+  return true;
+}
+
 // The one function outside UPDATE that writes to state, because restoring
 // a save IS writing state. Only UPDATE and BOOT ever call it.
 // Returns true if a save was found and applied.
@@ -1596,6 +1668,7 @@ function loadGame() {
     const savedText = localStorage.getItem(saveSlotName);
     if (savedText === null) return false;
     const saved = JSON.parse(savedText);
+    if (!saveLooksComplete(saved)) return false;
     state.currentMap = saved.currentMap;
     state.player.tileX = saved.player.tileX;
     state.player.tileY = saved.player.tileY;
