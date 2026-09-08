@@ -1,7 +1,7 @@
 # TEARDOWN — six reads through `game.html`
 
 You are going to read a video game. Not play it: read it. `game.html` is one file, about
-2,100 lines, and it is the whole game. Nothing is hidden in another file or downloaded from
+2,241 lines, and it is the whole game. Nothing is hidden in another file or downloaded from
 the internet.
 
 Each read below takes 10–15 minutes and stands on its own. Every read has the same shape:
@@ -85,9 +85,9 @@ handful of lines that kick it off.
 order, because that is the order the computer does.
 
 Start at the bottom of the file. BOOT is not a function; it is a short list of statements that
-run once when the page opens. Follow them top to bottom: two checks on the data (1624–1658), the
-canvas gets its size (1663–1664), the keyboard gets listened to (1666–1667), a save is tried
-(1669–1672), and then one line — 1674 — asks the browser to call `frame` when it is next ready to
+run once when the page opens. Follow them top to bottom: two checks on the data (lines 1777–1778), the
+canvas gets its size (lines 1780–1781), the keyboard gets listened to (lines 1783–1785), a save is tried
+(lines 1788–1790), and then line 1792 asks the browser to call `frame` when it is next ready to
 draw.
 
 Now go to `frame`, lines 1612–1633. Twenty-two lines. Read each
@@ -109,7 +109,7 @@ nothing. The heart beat exactly once. Put the line back.
 **What you're looking for:** the map. It is not a picture. It is text you could type.
 
 **Where it lives:** §2 DATA, lines 357–725. The maps themselves are lines 401–489; the
-overworld's rows are lines 404–467.
+overworld's rows are lines 404–435.
 
 Look at line 419. It is row 14 of the overworld: a line of `=` (path) running from the left,
 across `BB` in the middle, and on to the right. Now look at the game: the path you start on.
@@ -264,7 +264,7 @@ character is at this spot on this map?", and treats anywhere off the edge as a w
 asks four questions in order: is someone standing there? is it the bridge? is it the forest gate?
 otherwise, what does the legend say? That is the entire physics engine.
 
-Look at how the bridge is handled (1171–1176). The legend says `'B'` is not walkable, but this
+Look at how the bridge is handled (lines 1215–1217). The legend says `'B'` is not walkable, but this
 one line overrides it when `state.flags.bridgeBuilt` is true. The tile never changed; a fact in
 `state` changed, and COLLIDE reads it.
 
@@ -305,11 +305,11 @@ Why does that matter? Because it means you can understand the game in two halves
 *what is true*. RENDER shows *what is true*. A bug in the drawing can never change where the
 player is, and a bug in the rules can never be hidden by the drawing.
 
-Now look at how the file enforces it. Line 1260 turns `state` into a string before drawing. Line
-1262 calls `assertRenderChangedNothing` (1592–1598), which turns `state` into a string again and
+Now look at how the file enforces it. Line 1628 turns `state` into a string before drawing. Line
+1630 calls `assertRenderChangedNothing` (1592–1598), which turns `state` into a string again and
 compares. If they differ, the game throws an error and stops. It is a promise with an alarm on it.
 
-The x-ray is built on that same pair of strings. Line 1253 takes a snapshot before UPDATE runs;
+The x-ray is built on that same pair of strings. Line 1621 takes a snapshot before UPDATE runs;
 line 1628 takes the one the purity check uses. Two snapshots, two comparisons:
 
 ```
@@ -372,7 +372,7 @@ frame: `frame` (1612) → `update` (912) → `updatePlayerMovement` (993) → `c
 `findNpcAt` (1193) and `tileAt` (1175) → back in `updatePlayerMovement`, line 1022 assigns
 `player.tileX = targetX`.
 
-**5.** Line 947, `return tileTypes[tileCharacter].walkable;`, combined with the legend: line 381
+**5.** Line 1221, `return tileTypes[tileCharacter].walkable;`, combined with the legend: line 381
 says `'D'` is `walkable: true` and line 382 says `'#'` is `walkable: false`. Walls and doors are
 just different letters in the map string; the legend is what gives them meaning.
 

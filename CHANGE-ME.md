@@ -31,15 +31,15 @@ stay the same length and the tree border stays on the edge.
 **Where:** §2 DATA, lines 357–725
 **You should see:** The map is wider, and the camera slides further right before it stops.
 
-## 4. Add a fifth item
+## 4. Add an eighth item
 
-**Do:** The game already has four items. Add a fifth, copying the shape of an existing one, with
+**Do:** The game already has seven items. Add an eighth, copying the shape of an existing one, with
 a tile position that isn't a wall or a tree.
 **Where:** §2 DATA, lines 523–533 (`items`)
 **You should see:** A new colored square on the ground, and its name in the Bag line once you
 walk over it.
 
-## 5. Add a fourth NPC
+## 5. Add a fifth NPC
 
 **Do:** Add a new entry to the NPC table, copying the shape of Mira, Bram, or Oswin, with its own
 name, position, and dialogue tree.
@@ -63,7 +63,7 @@ value over time, and where a value that changes over time is supposed to live.
 map row.
 **Where:** §1 CONFIG, lines 274–298 (`colors`)
 **Where:** §2 DATA, lines 375–388 (`tileTypes`)
-**Where:** §2 DATA, lines 404–467 (`maps.overworld.rows`)
+**Where:** §2 DATA, lines 404–435 (`maps.overworld.rows`)
 **You should see:** A new colored tile where you typed the letter, either blocking your walk or
 letting you through, depending on the walkable value you picked.
 **Then go further:** every tile in that table says two things about itself — `walkable` and
@@ -76,7 +76,7 @@ where UPDATE reads it (`stepCooldownFor`) and you have the whole pattern.
 **Do:** Copy the shape of the house map to make a new interior, then add a matching pair of
 doors linking a tile in the overworld to a tile in the new interior, and back.
 **Where:** §2 DATA, lines 401–489 (`maps`)
-**Where:** §2 DATA, lines 404–467 (`maps.overworld.rows`)
+**Where:** §2 DATA, lines 404–435 (`maps.overworld.rows`)
 **Where:** §2 DATA, lines 492–512 (`doors`)
 **You should see:** Stepping on the new door tile takes you into the new interior, and stepping
 on its exit tile brings you back to the same spot outside.
@@ -89,7 +89,7 @@ want that item, so finishing one quest is what makes the next one possible.
 **Where:** §2 DATA, lines 540–545 (`quests`)
 **Where:** §2 DATA, lines 558–708 (`npcs`)
 **Where:** §5 UPDATE, lines 1098–1113 (`updateTalking`)
-**Where:** §5 UPDATE, lines 1117–1154 (`updateDialogue`)
+**Where:** §5 UPDATE, lines 1117–1148 (`updateDialogue`)
 **Where:** §5 UPDATE, lines 1150–1163 (`giveItemsToNpc`)
 **You should see:** A chain — quest A can't be started until quest B is finished, because the
 thing A wants only exists after B.
