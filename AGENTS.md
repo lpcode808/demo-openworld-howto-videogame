@@ -35,8 +35,8 @@ The line budget is the mechanical half of that rule, so it is now **two numbers,
 (PRD §3, §3a):
 
 - **The required read — top of file through section 10 — is 1,200–1,800 lines.** This is the
-  floor and it is the number to defend. Currently 1,676.
-- **The whole file, optional sections included, is ≤ 2,600 lines.** Currently 2,121.
+  floor and it is the number to defend. Currently 1,759 — about 40 lines left (PRD §4e).
+- **The whole file, optional sections included, is ≤ 2,600 lines.** Currently 2,204.
 
 Anything that takes the file past 1,800 has to earn it by being optional and *provably
 removable*: its own numbered section after `10 · BOOT`, with `check-xray-removable.mjs` still
@@ -53,7 +53,7 @@ work — §5 still lists it as a non-goal.
 - Three maps, four quests, eleven sections. Level one is the village and must stay a
   five-minute playthrough (PRD §5); level two is behind the forest gate and only opens
   after it, which is what keeps that rule true.
-- Must run in **Microsoft Edge** — the school's managed devices — and Chrome. Nothing else.
+- Must run in **Chrome**. Edge was dropped as a target in v1.7 (PRD §3); do not reopen it.
 - The two line budgets above · ≤ 100 chars/line · ≤ 40 lines/function.
 - The ten sections of PRD §4, in order, each with its numbered banner and its "What to look for" line.
 - **RENDER never mutates `state`.** The dev assertion that proves it ships in the file.

@@ -384,6 +384,87 @@ function findDoor(world, fromMap, toMap) {
   return world.doors.find((door) => door.fromMap === fromMap && door.toMap === toMap);
 }
 
+// A malformed or old save must be refused whole, before it changes anything:
+// SAVE's saveLooksComplete checks the shape before loadGame touches state.
+// Proves that for three kinds of bad save: an unknown map, a missing
+// `player`, and a valid-shaped save naming an item that does not exist.
+async function checkBadSaveIsRefused(page, world) {
+  const badSaves = [
+    { currentMap: 'nowhere', player: { tileX: 3, tileY: 14, facing: 'right' },
+      inventory: [], pickedUpItems: [], flags: {} },
+    { currentMap: 'overworld', inventory: [], pickedUpItems: [], flags: {} },
+    { currentMap: 'overworld', player: { tileX: 3, tileY: 14, facing: 'right' },
+      inventory: ['not-a-real-item'], pickedUpItems: [], flags: {} },
+  ];
+
+  for (const badSave of badSaves) {
+    const issuesBefore = consoleIssues.length;
+    await page.evaluate((args) => localStorage.setItem(args.slot, args.text),
+      { slot: world.saveSlotName, text: JSON.stringify(badSave) });
+    await page.reload();
+    await waitForCanvasReady(page);
+    await page.waitForTimeout(500);
+
+    const framesBefore = await page.evaluate(() => xrayMemory.framesDrawn);
+    await page.waitForTimeout(300);
+    const framesAfter = await page.evaluate(() => xrayMemory.framesDrawn);
+    assertTrue(framesAfter > framesBefore,
+      'expected the loop to still be drawing frames after loading ' + JSON.stringify(badSave) +
+      ', framesDrawn stayed at ' + framesBefore);
+
+    const state = await getState(page);
+    assertTrue(state.currentMap === 'overworld',
+      'expected currentMap "overworld" after a refused save ' + JSON.stringify(badSave) +
+      ', got "' + state.currentMap + '"');
+
+    assertTrue(consoleIssues.length === issuesBefore,
+      'expected no console/page errors loading ' + JSON.stringify(badSave) + ', got ' +
+      JSON.stringify(consoleIssues.slice(issuesBefore)));
+  }
+  await page.evaluate((slot) => localStorage.removeItem(slot), world.saveSlotName);
+  console.log('PASS — an unknown map, a missing player, and an unknown item id in inventory ' +
+    'were all refused without freezing or crashing the game');
+}
+
+// Held-key regression: a direction key still held from steering the
+// dialogue menu must not walk the player the instant the box closes.
+// Section 5 UPDATE clears the four held-direction intents, not just
+// newestMoveDirection, when a speech box closes — this proves that.
+// Run before the herb is picked up, so talking to Mira starts at her
+// two-choice "hello" node instead of the one-choice "offer" node.
+async function checkHeldMenuKeyDoesNotWalkAfterDialogue(page, world) {
+  const npcStatic = world.npcs.find((npc) => npc.id === 'mira');
+  const rows = world.maps[npcStatic.map].rows;
+  const approach = findApproachTile(npcStatic, rows, world.tileTypes);
+  await walkTo(page, world, approach.x, approach.y);
+  await faceDirection(page, approach.faceDirection);
+
+  await tapKey(page, 'Space');
+  await waitForCondition(page, (s) => s.dialogue !== null, 1000,
+    'dialogue to open when talking to "mira" for the held-key check');
+
+  await page.keyboard.down('ArrowDown');
+  // One held key-down moves the highlight from "Where do herbs grow?" to
+  // "I'll be back." (menuDownPressed is a one-shot edge, not this hold).
+  await page.waitForTimeout(50);
+  await tapKey(page, 'Space'); // picks "I'll be back.", which closes the box
+  await waitForCondition(page, (s) => s.dialogue === null, 1000,
+    'dialogue to close after picking "I\'ll be back."');
+
+  const before = await getState(page);
+  await page.waitForTimeout(400); // ArrowDown is still held from steering the menu
+  const after = await getState(page);
+  await page.keyboard.up('ArrowDown');
+
+  assertTrue(after.player.tileX === before.player.tileX &&
+    after.player.tileY === before.player.tileY,
+    'expected the player not to walk on the still-held ArrowDown once the dialogue closed, ' +
+    'moved from (' + before.player.tileX + ',' + before.player.tileY + ') to (' +
+    after.player.tileX + ',' + after.player.tileY + ')');
+  console.log('PASS — a direction key held from steering the dialogue menu did not walk the ' +
+    'player once the box closed');
+}
+
 // On a completely fresh load: holding a direction key moves more than one
 // tile (proves held-key walking, not just single taps), and talking to
 // nobody does nothing and throws no error.
@@ -410,8 +491,10 @@ async function checkFreshLoadBasics(page) {
 async function runPlaythrough(page) {
   const world = await getWorld(page);
 
+  await checkBadSaveIsRefused(page, world);
   await checkFreshLoadBasics(page);
   await checkForestGateIsShutOnAFreshLoad(page, world);
+  await checkHeldMenuKeyDoesNotWalkAfterDialogue(page, world);
 
   const herb = findItem(world, 'herb');
   await walkTo(page, world, herb.tileX, herb.tileY);
@@ -496,6 +579,8 @@ async function runPlaythrough(page) {
     state.player.tileY + ')');
   console.log('PASS — N deleted the save and reset the game to its starting state');
 
+  await checkBagWrapsInsteadOfOverlapping(page);
+
   await runXrayChecks(page, world);
 }
 
@@ -523,6 +608,32 @@ async function checkXrayToggle(page) {
   await page.waitForTimeout(50);
   assertTrue(await isXrayPanelHidden(page) === true, 'expected X to hide the X-ray panel again');
   console.log('PASS — X hid the X-ray panel again');
+}
+
+// The "3 · STATE" box is the most code-like one in the panel, so it stays
+// closed until clicked (PRD §0a) — but its text keeps updating underneath,
+// and a click still opens it.
+async function checkStateDetailsClosedByDefault(page) {
+  await tapKey(page, 'x');
+  await page.waitForTimeout(50);
+
+  const beforeClick = await page.evaluate(() => ({
+    open: document.querySelector('#xray details').open,
+    stateText: document.getElementById('xrayState').textContent,
+  }));
+  assertTrue(beforeClick.open === false,
+    'expected the "3 · STATE" <details> closed on a fresh open of the panel');
+  assertTrue(beforeClick.stateText.length > 0,
+    'expected #xrayState to keep updating its text while its <details> is closed');
+  console.log('PASS — the "3 · STATE" box starts closed, and still updates while closed');
+
+  await page.evaluate(() => document.querySelector('#xray summary').click());
+  const afterClick = await page.evaluate(() => document.querySelector('#xray details').open);
+  assertTrue(afterClick === true, 'expected clicking the summary to open the "3 · STATE" box');
+  console.log('PASS — clicking the summary opens the "3 · STATE" box');
+
+  await tapKey(page, 'x');
+  await page.waitForTimeout(50);
 }
 
 // (v1.1) The open/closed choice survives F5, via localStorage key
@@ -1050,6 +1161,7 @@ async function checkClipboardReceivedPrompt(page) {
 
 async function runXrayChecks(page, world) {
   await checkXrayToggle(page);
+  await checkStateDetailsClosedByDefault(page);
   await checkXrayOpenStateSurvivesReload(page, world);
   await checkPauseFreezesUpdateNotRender(page);
   await checkResumeHasNoCatchUpBurst(page);
@@ -1137,6 +1249,46 @@ async function checkTheBogCostsMoreThanGrass(page) {
     costs.bog + ' vs ' + costs.grass);
   console.log('PASS — a bog step costs ' + costs.multiplier + 'x a grass step (' +
     costs.bog.toFixed(3) + 's vs ' + costs.grass.toFixed(3) + 's)');
+}
+
+// A long bag word-wraps instead of running into the quest column. Reruns
+// drawBag's own wrap rule in the page against the real canvas context and
+// font, so this proves the same measurement the game draws with.
+async function checkBagWrapsInsteadOfOverlapping(page) {
+  await page.evaluate(() => { state.inventory = ['herb', 'plank', 'lantern']; });
+  await page.waitForTimeout(50); // let one frame render with the new bag
+
+  const result = await page.evaluate(() => {
+    const names = state.inventory.map((itemId) => findItemById(itemId).name);
+    context.font = fonts.hud;
+    const lineWidths = [];
+    let lineSoFar = 'Bag: ';
+    for (let index = 0; index < names.length; index++) {
+      const name = names[index];
+      const separator = index === names.length - 1 ? '' : ', ';
+      if (context.measureText(lineSoFar + name).width > layout.hudBagMaxWidth) {
+        lineWidths.push(context.measureText(lineSoFar).width);
+        lineSoFar = '';
+      }
+      lineSoFar += name + separator;
+    }
+    lineWidths.push(context.measureText(lineSoFar).width);
+    return { maxWidth: layout.hudBagMaxWidth, lineWidths };
+  });
+
+  assertTrue(typeof result.maxWidth === 'number', 'expected layout.hudBagMaxWidth to exist');
+  assertTrue(result.lineWidths.length >= 2,
+    'expected a three-item bag to wrap onto at least two lines, got ' +
+    result.lineWidths.length);
+  for (const width of result.lineWidths) {
+    assertTrue(width <= result.maxWidth,
+      'expected every wrapped bag line to fit within hudBagMaxWidth (' + result.maxWidth +
+      'px), got a line ' + width + 'px wide');
+  }
+  console.log('PASS — a three-item bag word-wraps onto ' + result.lineWidths.length +
+    ' lines, each within hudBagMaxWidth');
+
+  await page.evaluate(() => { state.inventory = []; });
 }
 
 // Walk the whole of level two: in through the gate, gather all three, back

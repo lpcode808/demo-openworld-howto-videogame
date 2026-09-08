@@ -363,3 +363,44 @@ elsewhere. Desktop agents read the newest entry after syncing.
 - Replaced five dense text diagrams in how.html with responsive native HTML/CSS visuals: the frame pipeline, build timeline, removable X-ray, pause/step flow, and maintainer checks.
 - Styling reuses the page's dark panels, grey rules, monospace labels, and gold highlight. No scripts, dependencies, or game files changed.
 - Routing: review and merge pull request for the infographic page update.
+
+### 2026-09-03 — readability, two-agent bug hunt, X-ray trim, how.html caught up — Claude Code
+- **Asked for, in order:** fix light grey on blue for student eyes; raise the default type size;
+  have agents UX-test the game for crashes; ask whether the live X-ray shows too much, plus a
+  pass on `how.html`; document everything. Fable orchestrated and judged, Sonnet-model agents
+  did the testing, reviewing, fixing and most of the writing. Three commits on
+  `claude/accessibility-ux-testing-osxph9`; PRD **§4e** is the full record.
+- **Contrast was measured, not eyeballed:** hints 4.3:1, dim rows 5.3:1, NPC names on grass
+  2.5:1 and on the path 1.8:1. All dim grey is now `#b4b4c4` (8.9:1) or `#c8c8d0` (11.4:1);
+  NPC names sit on a dark strip. Type: panel 12→14 px, under-canvas 13→15, canvas labels
+  11→13, dialogue 16→17. Panel 420→500 px; help line dropped `T timer`; two Nessa lines rewrapped.
+  `how.html` got the same grey and size lift.
+- **Four bugs, all confirmed by both testers or by screenshot, all fixed:** `loadGame` wrote
+  `state` before validating (a hand-edited or old save froze the game on load — now
+  `saveLooksComplete` checks shape and item ids first); holding Down through a dialogue choice
+  walked one step on close (UPDATE now clears the four held flags too); the Bag line ran under
+  the quest column with three items (`drawBag` wraps under `layout.hudBagMaxWidth`); one
+  notice overflowed its box (`noticeWidth` 400). Four regression checks in `playthrough.mjs`.
+- **X-ray verdict: close to right-sized.** `3 · STATE` folds shut by default (`<details>`),
+  its caption names P, the INPUT hint is a third shorter. Pipe diagram, buttons, intents,
+  change log and COLLIDE kept as-is. §4c's two rejections still stand.
+- **`how.html`** gained phases 9–11 (playtest + budget split, Old Forest, this pass), a third
+  beat on phase 8 (infographics), five timeline rows with HST times from git, a "twelve phases,
+  ten minutes" skim hint, three close-ups marked "open this one", and corrected counts.
+- **Budgets:** required read 1,759 / 1,800; whole file 2,204 / 2,600; stripped 1,617.
+  All four tools exit 0; every TEARDOWN/CHANGE-ME citation re-anchored twice (once per
+  game.html-changing commit) and verified with `check-doc-lines.mjs` plus the eyeball list.
+- **Method notes for the next orchestrator:** the two bug hunters were run blind to each other
+  and agreed on the two serious bugs, which is what made them "certain" rather than
+  "plausible"; the X-ray review was told the two §4c rejections up front so it would not
+  re-propose them. Sonnet agents could not write files named `REPORT.md` (harness policy), so
+  their reports came back inline — ask for the report in the final message, not a file.
+- **Not done, still:** **Edge on a school laptop.** New things to eyeball there: the 500 px
+  panel beside the 640 px canvas at 1366 px, the `<details>` summary, name strips on the
+  forest floor. Also not done on purpose: the how.html student read suggested merging phases
+  5 and 7 (both about the panel explaining itself) — a spine change, left for the maintainer.
+- **Update, same session:** the maintainer closed the Edge question — everyone uses Chrome.
+  PRD §3, AGENTS.md, README and TEARDOWN now name Chrome alone; the Edge test is closed, not
+  done. Merged to `main` as a PR from this branch.
+- Routing: none. Next open student ideas are still `CHANGE-ME.md` extras A (voices) and C
+  (sound); neither should be built unasked.
