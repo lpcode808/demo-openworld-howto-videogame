@@ -35,8 +35,8 @@ The line budget is the mechanical half of that rule, so it is now **two numbers,
 (PRD §3, §3a):
 
 - **The required read — top of file through section 10 — is 1,200–1,800 lines.** This is the
-  floor and it is the number to defend. Currently 1,676.
-- **The whole file, optional sections included, is ≤ 2,600 lines.** Currently 2,121.
+  floor and it is the number to defend. Currently 1,759 — about 40 lines left (PRD §4e).
+- **The whole file, optional sections included, is ≤ 2,600 lines.** Currently 2,204.
 
 Anything that takes the file past 1,800 has to earn it by being optional and *provably
 removable*: its own numbered section after `10 · BOOT`, with `check-xray-removable.mjs` still

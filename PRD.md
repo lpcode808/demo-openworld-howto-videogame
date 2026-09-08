@@ -2,10 +2,11 @@
 
 **An open-world adventure game built to be read, not played.**
 
-Status: v1.6 · P1 built 2026-09-01 · X-RAY and pause/step added 2026-09-02 (§4a, §5a, §8)
+Status: v1.7 · P1 built 2026-09-01 · X-RAY and pause/step added 2026-09-02 (§4a, §5a, §8)
 · X-ray explanation layer added 2026-09-02 (§4b, §8) · X-ray wording pass 2026-09-03 (§4c, §8)
 · first student playtest answered 2026-09-03 (§4d, §8)
 · level two — the Old Forest — added 2026-09-03 (§5b, §8)
+· readability, save hardening, X-ray trim 2026-09-03 (§4e, §8)
 
 ---
 
@@ -119,13 +120,13 @@ ceiling.**
 - **The floor is sections 1–10**, and it stays where it was. A student who has never played a
   video game, let alone read one, meets exactly the ten sections and nothing else; the file
   says so at the top of section 11 and `README.md` says so too. Two ways to measure it, both
-  comfortably inside the original band: **1,676 lines** from the top of the file to the
+  inside the original band: **1,759 lines** from the top of the file to the
   section-11 banner, which is what `tools/check.mjs` now reports as a separate PASS/FAIL, and
-  **1,544 lines** once the X-ray's `<aside>` and stylesheet are stripped as well, which is
+  **1,617 lines** once the X-ray's `<aside>` and stylesheet are stripped as well, which is
   what `tools/check-xray-removable.mjs` prints. The floor is the number to defend, and it has
-  moved twice: 1,370 before the playtest pass, 1,482 after it, 1,676 once level two went in.
-  Still mid-band, with about 120 lines of floor left — which is the number to watch, not the
-  2,600.
+  moved three times: 1,370 before the playtest pass, 1,482 after it, 1,676 once level two went
+  in, 1,759 after the v1.7 readability and save-hardening pass (§4e). Near the top of the
+  band now, with about 40 lines of floor left — which is the number to watch, not the 2,600.
 - **The ceiling is everything after `10 · BOOT`**, and it can grow. The X-ray earned its ~445
   lines by being invisible until a student presses X and provably deletable without touching
   the game. Anything else that wants room has to clear the same bar: optional, opt-in,
@@ -338,6 +339,78 @@ which is what §3 says to do), and the X-ray is still removable.
 
 ---
 
+### 4e. Amendment (v1.7) — readability, then a bug hunt, then the panel asked "too much?"
+
+Asked for by the maintainer in three parts, in this order, and done in this order.
+
+**Light grey on navy was hard to read, especially for student eyes.** Measured before anything
+was changed: the dim grey used for the panel's hints, idle intents, the HUD help line and the
+text under the game came out between **4.3:1 and 5.3:1** against the navy background, and the
+11 px hints failed the 4.5:1 bar small text is held to. NPC names, white straight on grass,
+were **2.5:1**, and **1.8:1** on the path. Every dim grey is now `#b4b4c4` (8.9:1) or `#c8c8d0`
+(11.4:1); the gold-for-lit convention is untouched, so the pipe diagram still reads by colour
+and by its `▶`/`│` markers. NPC names sit on the same dark strip the speech box uses, sized
+with `measureText` and two named `layout` numbers. Type went up one to two steps everywhere a
+student reads: panel 12 → 14 px (headings 15/14, hints and buttons 13, prompt box 12), text
+under the canvas 13 → 15 px, canvas labels 11 → 13 px, dialogue 16 → 17 px. The panel widened
+420 → 500 px so the widest pipe row (54 characters) fits without a horizontal scrollbar; the
+help line dropped `T timer` (still in the text under the game) to fit at 13 px; two of Nessa's
+lines were rewrapped to 58 characters so nothing runs off the 640 px canvas at 17 px.
+`how.html` got the same grey and the same size lift in the same pass.
+
+**Then two agents tried to break the game, in parallel and without seeing each other.** One
+played it in headless Chromium (key mashing, save abuse, every map edge, X-ray interplay, a
+150-key random storm with the panel open); one read sections 2–11 and wrote a repro for every
+suspicion. They agreed on four things, which is why all four were fixed the same afternoon:
+- **A malformed or out-of-date save could freeze the game, even on plain page load.**
+  `loadGame` wrote `state.currentMap` before checking anything, so a save with no `player`
+  threw after `state` was half-written, and a save naming a map that does not exist "loaded"
+  and crashed one frame later in `computeCamera`. An unknown item id in the bag did the same
+  in `drawHud`. Now `saveLooksComplete` checks the shape and every item id **before** the
+  first assignment, and a bad save changes nothing — the same idea as the boot-time DATA
+  checks, applied to what came out of storage.
+- **Holding Down to pick a dialogue choice walked the player one step when the box closed.**
+  UPDATE's dialogue branch threw away `newestMoveDirection` but not the four held-direction
+  booleans, so the held-key fallback in `updatePlayerMovement` saw a "fresh" key. It clears
+  all four now; a key still held when the box closes has to be pressed again.
+- **The Bag line ran under the quest column with three items.** Reachable in ordinary play
+  (herb, plank, lantern before turning any in). `drawBag` wraps the names onto the HUD's spare
+  lines with `measureText`, under a named `layout.hudBagMaxWidth`, the same split `drawQuestList`
+  already made from `drawHud`.
+- **One notice was wider than its box** (`Quest complete: Bram the Carpenter`, 368 px in a
+  360 px banner). `noticeWidth` is 400.
+Four regression checks went into `tools/playthrough.mjs` so none of these can come back quietly.
+Everything else they tried held: `tileAt` from −1000 to 99999 on all three maps, every edge,
+save-mid-dialogue, K → N → L, invalid JSON in storage, a legacy save missing a flag, a
+three-second stall with no catch-up burst, F5 with the panel open.
+
+**Then the panel was asked whether it shows too much in real time.** Method as in §4c: real
+screenshots in six states, then two voices (a fifteen-year-old, a learning-UX reviewer). The
+verdict was that it is close to right-sized, and three small changes were taken:
+- **`3 · STATE` folds shut by default** behind a native `<details>`. The raw JSON is the most
+  code-like box and the "push against it" reading, so it is opt-in — §0a's rule applied to the
+  panel itself. `showState` still writes into it every frame; nothing else changed.
+- Its caption now says **P freezes it**, which was already true and which every neighbouring
+  caption said about itself.
+- The `4 · INPUT` hint, the longest in the panel and second from the top, lost a third of its
+  words without losing the `newestMoveDirection` point.
+Kept on purpose: the pipe diagram first, the intents list, change log and COLLIDE box as they
+are, and the two AI buttons with the hide-until-first-copy textarea. The two §4c rejections
+(rewording the UPDATE row on a `.` step, reordering boxes by section number) still stand.
+
+**Budgets after this pass (§3a).** Required read **1,759 of 1,800**; whole file 2,204 of 2,600;
+stripped, X-ray-free game 1,617 lines. The save check, the bag wrap and the dialogue fix all
+went into sections 5, 7 and 9 — the required read — because a beginner who hand-edits a save
+or picks up three items meets them; that is the one kind of thing the floor is for. It cost
+73 lines and leaves **about 40 lines of floor**. The next thing that wants floor has to pay
+for itself by trimming, or go after BOOT.
+
+**Staffing.** The orchestrating model measured, judged every report and re-ran the four tools
+before each commit; Sonnet-model agents did the two bug hunts, both reviews, the fixes and
+most of the `how.html` writing. Not done, still: **Edge on a school laptop.** Two new things to
+eyeball there: the 500 px panel next to a 640 px canvas on a 1366 px screen, and a `<details>`
+summary in the panel.
+
 ## 5. Scope — what the game actually is
 
 **P1. Build this and stop.**
@@ -533,6 +606,16 @@ Mechanically checkable — run these before calling it done:
       clock. Section 11 is still removable and `xrayMemory` is still the only X-ray memory.
 - [ ] (v1.5) All four `tools/*.mjs` exit 0 after every TEARDOWN/CHANGE-ME citation was
       re-anchored, and no line in `game.html` exceeds 100 characters.
+- [ ] (v1.7) No text a student reads in the page or the panel is below 4.5:1 against its
+      background; every dim grey is ≥ 8.9:1. No text under 12 px anywhere in `game.html`.
+- [ ] (v1.7) NPC names are drawn on a dark strip; the widest pipe row fits the panel with no
+      horizontal scrollbar; Nessa's longest line fits the speech box at 17 px.
+- [ ] (v1.7) A save with no `player`, an unknown `currentMap`, or an unknown item id is
+      refused by `loadGame` with `state` untouched, and the loop keeps running.
+- [ ] (v1.7) Holding Down/S while picking a dialogue choice moves nobody when the box closes.
+- [ ] (v1.7) With herb, plank and lantern in the bag the Bag text wraps and never reaches
+      `layout.hudQuestColumnX`; every notice string fits `layout.noticeWidth`.
+- [ ] (v1.7) `3 · STATE` opens closed and still updates; its caption names P.
 
 Judged by a human, not the agent:
 
